@@ -500,7 +500,7 @@ Setelah selesai, berikan laporan dengan format:
 9. Hasil php artisan route:list.
 10. Hasil php artisan test.
 11. Catatan error yang ditemukan dan cara memperbaikinya.
-12. Konfirmasi bahwa alur kerja sistem, URL, database, Filament, dan behavior tidak berubah.
+12. Konfirmasi bahwa alur kerja sist, URL, database, Filament, dan behavior tidak berubah.
 
 Ingat:
 Fokus tugas ini adalah MIGRASI STRUKTUR, bukan rewrite logic.
