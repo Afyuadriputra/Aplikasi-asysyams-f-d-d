@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use App\Features\Contacts\Controllers\ContactController;
+use App\Features\Academic\Models\ClassGroup;
 use Illuminate\Support\Str;
 
 /*
@@ -129,63 +130,64 @@ Route::get('/rapor-pdf/{class_group}/{user}', function(ClassGroup $class_group, 
     return $pdf->stream('Rapor-' . Str::slug($user->name) . '.pdf');
 })->middleware(['auth', EnsureUserHasPermission::class . ':reports.download'])->name('rapor.pdf');
 
-// ===== TEMPORARY: CHECK DATABASE (HAPUS SETELAH DIGUNAKAN) =====
-Route::get('/check-db', function () {
-    try {
-        // Test database connection
-        DB::connection()->getPdo();
+// ===== DEBUG ROUTES: PROTECTED BY LOCAL ENVIRONMENT CHECK =====
+if (app()->environment('local')) {
+    // CHECK DATABASE
+    Route::get('/check-db', function () {
+        try {
+            // Test database connection
+            DB::connection()->getPdo();
+            
+            // Check if users table exists
+            $usersCount = DB::table('users')->count();
+            
+            // Check migration status
+            $migrations = DB::table('migrations')->count();
+            
+            return response()->json([
+                'status' => 'Database connected!',
+                'users_count' => $usersCount,
+                'migrations_count' => $migrations,
+                'database_name' => config('database.connections.mysql.database'),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => $e->getMessage(),
+                'database_name' => config('database.connections.mysql.database'),
+            ], 500);
+        }
+    });
+
+    // Rute untuk membersihkan semua cache
+    Route::get('/clear-cache-sekarang', function () {
+        Artisan::call('optimize:clear');
+        Artisan::call('cache:clear');
+        Artisan::call('route:clear');
+        Artisan::call('view:clear');
+        Artisan::call('config:clear');
+        Artisan::call('filament:clear-cached-components');
         
-        // Check if users table exists
-        $usersCount = DB::table('users')->count();
-        
-        // Check migration status
-        $migrations = DB::table('migrations')->count();
-        
-        return response()->json([
-            'status' => 'Database connected!',
-            'users_count' => $usersCount,
-            'migrations_count' => $migrations,
-            'database_name' => config('database.connections.mysql.database'),
-        ]);
-    } catch (\Exception $e) {
-        return response()->json([
-            'error' => $e->getMessage(),
-            'database_name' => config('database.connections.mysql.database'),
-        ], 500);
-    }
-});
+        return 'Mantap! Semua cache Laravel dan Filament berhasil dibersihkan. Silakan buka /admin sekarang.';
+    });
+
+    // Rute untuk mengecek apakah rute admin Filament terbaca oleh server
+    Route::get('/cek-rute', function () {
+        Artisan::call('route:list', ['--path' => 'admin']);
+        return '<pre>' . Artisan::output() . '</pre>';
+    });
+
+    Route::get('/cek-pintu', function () {
+        try {
+            $url = route('filament.admin.auth.login');
+            return "<h3>Sistem Laravel mendeteksi halaman login ada di link ini:</h3>
+                    <a href='{$url}' style='font-size:20px; font-weight:bold; color:blue;'>KLIK DI SINI UNTUK LOGIN</a>
+                    <br><br>
+                    <p>Kalau diklik masih 404, berarti ada yang memblokir dari luar Laravel.</p>";
+        } catch (\Exception $e) {
+            return "Terjadi error: " . $e->getMessage();
+        }
+    });
+}
 // =================================================================
-
-// Route::get('/program', function () {
-//     return view('pages.program');
-// })->name('program');
-// Rute untuk membersihkan semua cache
-Route::get('/clear-cache-sekarang', function () {
-    Artisan::call('optimize:clear');
-    Artisan::call('cache:clear');
-    Artisan::call('route:clear');
-    Artisan::call('view:clear');
-    Artisan::call('config:clear');
-    Artisan::call('filament:clear-cached-components');
-    
-    return 'Mantap! Semua cache Laravel dan Filament berhasil dibersihkan. Silakan buka /admin sekarang.';
-});
-
-// Rute untuk mengecek apakah rute admin Filament terbaca oleh server
-Route::get('/cek-rute', function () {
-    Artisan::call('route:list', ['--path' => 'admin']);
-    return '<pre>' . Artisan::output() . '</pre>';
-});
-Route::get('/cek-pintu', function () {
-    try {
-        $url = route('filament.admin.auth.login');
-        return "<h3>Sistem Laravel mendeteksi halaman login ada di link ini:</h3>
-                <a href='{$url}' style='font-size:20px; font-weight:bold; color:blue;'>KLIK DI SINI UNTUK LOGIN</a>
-                <br><br>
-                <p>Kalau diklik masih 404, berarti ada yang memblokir dari luar Laravel.</p>";
-    } catch (\Exception $e) {
-        return "Terjadi error: " . $e->getMessage();
-    }
-});
 
 require __DIR__.'/auth.php';

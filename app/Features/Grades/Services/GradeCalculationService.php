@@ -37,14 +37,15 @@ class GradeCalculationService
 
             foreach ($data as $item) {
                 if (isset($item['nilai'])) {
-                    if ($item['nilai'] === 'L') {
+                    $nilai = is_string($item['nilai']) ? strtoupper(trim($item['nilai'])) : $item['nilai'];
+                    if ($nilai === 'L') {
                         $totalScore += 100;
-                    } elseif ($item['nilai'] === 'C') {
+                    } elseif ($nilai === 'C') {
                         $totalScore += 75;
-                    } elseif ($item['nilai'] === 'TL') {
+                    } elseif ($nilai === 'TL') {
                         $totalScore += 50;
-                    } elseif (is_numeric($item['nilai'])) {
-                        $totalScore += (float) $item['nilai'];
+                    } elseif (is_numeric($nilai)) {
+                        $totalScore += (float) $nilai;
                     }
                     $count++;
                 }
