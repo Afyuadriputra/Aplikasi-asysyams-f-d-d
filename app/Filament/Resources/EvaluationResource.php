@@ -3,8 +3,8 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\EvaluationResource\Pages;
-use App\Models\ClassGroup;
-use App\Models\Evaluation;
+use App\Features\Academic\Models\ClassGroup;
+use App\Features\Grades\Models\Evaluation;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;

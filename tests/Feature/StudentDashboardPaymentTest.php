@@ -2,9 +2,9 @@
 
 namespace Tests\Feature;
 
-use App\Models\Payment;
-use App\Models\RolePermission;
-use App\Models\Semester;
+use App\Features\Payments\Models\Payment;
+use App\Features\Permissions\Models\RolePermission;
+use App\Features\Academic\Models\Semester;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;

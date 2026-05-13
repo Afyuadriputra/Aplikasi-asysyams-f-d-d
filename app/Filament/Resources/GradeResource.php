@@ -3,7 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\GradeResource\Pages;
-use App\Models\Grade;
+use App\Features\Grades\Models\Grade;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;

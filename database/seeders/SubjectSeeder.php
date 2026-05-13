@@ -2,7 +2,7 @@
 
 namespace Database\Seeders;
 
-use App\Models\Subject;
+use App\Features\Academic\Models\Subject;
 use Illuminate\Database\Seeder;
 
 class SubjectSeeder extends Seeder

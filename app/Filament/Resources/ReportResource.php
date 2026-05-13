@@ -4,7 +4,7 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\ReportResource\Pages;
 use App\Filament\Resources\ReportResource\RelationManagers;
-use App\Models\ClassGroup;
+use App\Features\Academic\Models\ClassGroup;
 use Filament\Resources\Resource;
 use Filament\Forms;
 use Filament\Infolists;

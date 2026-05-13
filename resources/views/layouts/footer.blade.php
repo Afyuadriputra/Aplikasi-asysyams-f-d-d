@@ -1,5 +1,5 @@
 @php
-    use App\Models\SiteSetting;
+    use App\Features\SiteSettings\Models\SiteSetting;
 
     try {
         $footerBg = SiteSetting::where('key', 'bg_footer')->value('value');

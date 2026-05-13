@@ -3,7 +3,7 @@
 namespace App\Filament\Resources\EvaluationResource\Pages;
 
 use App\Filament\Resources\EvaluationResource;
-use App\Models\Evaluation;
+use App\Features\Grades\Models\Evaluation;
 use Filament\Actions;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\CreateRecord;

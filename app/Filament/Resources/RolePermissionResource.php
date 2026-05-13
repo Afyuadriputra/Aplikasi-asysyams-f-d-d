@@ -3,7 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\RolePermissionResource\Pages;
-use App\Models\RolePermission;
+use App\Features\Permissions\Models\RolePermission;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Notifications\Notification;

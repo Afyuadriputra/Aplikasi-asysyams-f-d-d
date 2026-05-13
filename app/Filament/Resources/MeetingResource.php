@@ -4,8 +4,8 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\MeetingResource\Pages;
 use App\Filament\Resources\MeetingResource\RelationManagers;
-use App\Models\Meeting;
-use App\Models\ClassGroup;
+use App\Features\Meetings\Models\Meeting;
+use App\Features\Academic\Models\ClassGroup;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -49,7 +49,7 @@ class MeetingResource extends Resource
                             }
 
                             // Ambil siswa berdasarkan kelas yang dipilih
-                            $classGroup = \App\Models\ClassGroup::find($state);
+                            $classGroup = \App\Features\Academic\Models\ClassGroup::find($state);
                             
                             $attendanceData = []; // Inisialisasi array penampung
                             

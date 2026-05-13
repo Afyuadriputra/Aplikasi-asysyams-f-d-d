@@ -3,9 +3,11 @@
 namespace Tests\Feature;
 
 use App\Filament\Resources\MeetingResource\Pages\CreateMeeting;
-use App\Models\ClassGroup;
-use App\Models\Meeting;
-use App\Models\RolePermission;
+use App\Features\Academic\Models\ClassGroup;
+use App\Features\Meetings\Models\Meeting;
+use App\Features\Permissions\Models\RolePermission;
+use App\Features\Academic\Models\Semester;
+use App\Features\Academic\Models\Subject;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
@@ -36,12 +38,12 @@ class AttendanceTest extends TestCase
         ]);
 
         // 2. Buat Class Group dan Santri
-        $subject = \App\Models\Subject::create([
+        $subject = Subject::create([
             'name' => 'Tajwid',
             'slug' => 'tajwid'
         ]);
         
-        $semester = \App\Models\Semester::create([
+        $semester = Semester::create([
             'name' => 'Ganjil',
             'year' => '2026/2027',
             'start_date' => now()->startOfYear(),

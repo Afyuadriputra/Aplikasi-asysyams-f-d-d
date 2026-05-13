@@ -6,6 +6,14 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use App\Features\Payments\Models\Payment;
+use App\Features\Grades\Models\Grade;
+use App\Features\Grades\Models\Assessment;
+use App\Features\Grades\Models\Evaluation;
+use App\Features\Meetings\Models\Attendance;
+use App\Features\Meetings\Models\Meeting;
+use App\Features\Academic\Models\ClassGroup;
+use App\Features\Permissions\Models\RolePermission;
 
 // --- 1. TAMBAHAN IMPORT FILAMENT ---
 use Filament\Models\Contracts\FilamentUser;

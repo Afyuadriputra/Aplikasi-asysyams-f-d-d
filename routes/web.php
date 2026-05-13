@@ -1,16 +1,16 @@
 <?php
 
-use App\Http\Controllers\PaymentController;
-use App\Http\Controllers\PostController;
+use App\Features\Payments\Controllers\PaymentController;
+use App\Features\Posts\Controllers\PostController;
 use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\StudentController;
+use App\Features\Students\Controllers\StudentController;
 use App\Http\Middleware\EnsureUserHasPermission;
-use App\Models\Post; // <--- Pastikan Model ini ada
-use App\Models\SiteSetting; // <--- Pastikan Model ini ada
+use App\Features\Posts\Models\Post; // <--- Pastikan Model ini ada
+use App\Features\SiteSettings\Models\SiteSetting; // <--- Pastikan Model ini ada
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\ContactController;
+use App\Features\Contacts\Controllers\ContactController;
 use Illuminate\Support\Str;
 
 /*
@@ -121,7 +121,7 @@ Route::post('/payment/webhook', [PaymentController::class, 'webhook'])
 Route::post('/contact/send', [ContactController::class, 'send'])->name('contact.send');
 
 // Route Cetak Rapor Santri PDF
-Route::get('/rapor-pdf/{class_group}/{user}', function(App\Models\ClassGroup $class_group, App\Models\User $user) {
+Route::get('/rapor-pdf/{class_group}/{user}', function(ClassGroup $class_group, App\Models\User $user) {
     $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('filament.report.rapor-pdf', [
         'student' => $user,
         'classGroup' => $class_group

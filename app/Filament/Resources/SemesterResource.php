@@ -3,7 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\SemesterResource\Pages;
-use App\Models\Semester;
+use App\Features\Academic\Models\Semester;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;

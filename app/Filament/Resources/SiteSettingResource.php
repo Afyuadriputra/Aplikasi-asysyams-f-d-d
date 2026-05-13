@@ -3,7 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\SiteSettingResource\Pages;
-use App\Models\SiteSetting;
+use App\Features\SiteSettings\Models\SiteSetting;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;

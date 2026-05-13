@@ -3,9 +3,9 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\ClassGroupResource\Pages;
-use App\Models\ClassGroup;
-use App\Models\Semester;
-use App\Models\Subject;
+use App\Features\Academic\Models\ClassGroup;
+use App\Features\Academic\Models\Semester;
+use App\Features\Academic\Models\Subject;
 use App\Models\User;
 use Filament\Forms;
 use Filament\Forms\Form;
