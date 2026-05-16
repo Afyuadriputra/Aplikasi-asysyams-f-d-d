@@ -166,7 +166,7 @@ class PaymentController extends Controller
                             'source' => 'finish_redirect',
                         ],
                     ]);
-                } elseif (in_array($transactionStatus, ['deny', 'expire', 'cancel'], true)) {
+                } elseif (in_array($transactionStatus, ['deny', 'expire', 'cancel', 'failure'], true)) {
                     $payment->update([
                         'status' => 'failed',
                         'payment_type' => $status['payment_type'] ?? $request->query('payment_type') ?? $payment->payment_type,

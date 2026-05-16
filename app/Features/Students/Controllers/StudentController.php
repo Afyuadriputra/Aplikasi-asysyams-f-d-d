@@ -92,7 +92,7 @@ class StudentController extends Controller
         $user = Auth::user();
 
         // Ambil data absensi beserta detail pertemuannya
-        $attendances = Attendance::with(['meeting.subject'])
+        $attendances = Attendance::with(['meeting.classGroup.subject'])
             ->where('user_id', $user->id)
             ->latest()
             ->paginate(10); // Pakai pagination biar ga kepanjangan

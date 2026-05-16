@@ -53,7 +53,7 @@ class MidtransService
             $newStatus = 'paid';
         } elseif ($transactionStatus == 'pending') {
             $newStatus = 'pending';
-        } elseif ($transactionStatus == 'deny' || $transactionStatus == 'expire' || $transactionStatus == 'cancel') {
+        } elseif ($transactionStatus == 'deny' || $transactionStatus == 'expire' || $transactionStatus == 'cancel' || $transactionStatus == 'failure') {
             $newStatus = 'failed';
         }
 
