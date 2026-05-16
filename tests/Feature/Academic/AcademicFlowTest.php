@@ -80,6 +80,18 @@ class AcademicFlowTest extends TestCase
         $this->assertCount(2, $classGroup->students);
     }
 
+    public function test_user_class_group_relationship_works_from_student_side()
+    {
+        $semester = Semester::create(['name' => 'S1', 'year' => '2024', 'start_date' => now(), 'end_date' => now(), 'is_active' => true]);
+        $subject = Subject::create(['name' => 'Sub1', 'slug' => 'sub1']);
+        $classGroup = ClassGroup::create(['name' => 'C', 'slug' => 'c', 'subject_id' => $subject->id, 'semester_id' => $semester->id]);
+        $student = User::factory()->create(['role' => 'student']);
+
+        $student->classGroups()->attach($classGroup->id, ['joined_at' => now()]);
+
+        $this->assertTrue($student->classGroups->contains($classGroup));
+    }
+
     public function test_class_group_is_connected_to_meeting_assessment_and_evaluation()
     {
         $guru = User::factory()->create(['role' => 'guru']);

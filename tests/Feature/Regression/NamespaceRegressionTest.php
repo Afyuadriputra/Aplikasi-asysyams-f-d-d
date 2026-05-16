@@ -77,4 +77,53 @@ class NamespaceRegressionTest extends TestCase
             $this->assertTrue(class_exists($controller), "Controller $controller not found.");
         }
     }
+
+    public function test_legacy_model_and_service_imports_are_not_used_outside_user_model(): void
+    {
+        $forbiddenNamespaces = [
+            'App\\Models\\Payment',
+            'App\\Models\\Post',
+            'App\\Models\\Grade',
+            'App\\Models\\Assessment',
+            'App\\Models\\Evaluation',
+            'App\\Models\\ClassGroup',
+            'App\\Models\\Subject',
+            'App\\Models\\Semester',
+            'App\\Models\\Meeting',
+            'App\\Models\\Attendance',
+            'App\\Models\\RolePermission',
+            'App\\Models\\SiteSetting',
+            'App\\Services\\MidtransService',
+            'App\\Services\\GradeCalculationService',
+        ];
+
+        $paths = [
+            app_path(),
+            base_path('routes'),
+            base_path('database'),
+            resource_path('views'),
+        ];
+
+        foreach ($paths as $path) {
+            $files = new \RecursiveIteratorIterator(
+                new \RecursiveDirectoryIterator($path, \FilesystemIterator::SKIP_DOTS)
+            );
+
+            foreach ($files as $file) {
+                if (! $file->isFile()) {
+                    continue;
+                }
+
+                $contents = file_get_contents($file->getPathname());
+
+                foreach ($forbiddenNamespaces as $namespace) {
+                    $this->assertStringNotContainsString(
+                        $namespace,
+                        $contents,
+                        "Legacy namespace {$namespace} found in {$file->getPathname()}."
+                    );
+                }
+            }
+        }
+    }
 }

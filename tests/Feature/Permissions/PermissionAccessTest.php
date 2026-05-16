@@ -81,6 +81,44 @@ class PermissionAccessTest extends TestCase
         $this->assertFalse($guru->hasAnyAccess(['posts.view', 'payments.view']));
     }
 
+    public function test_has_any_access_false_jika_semua_permission_tidak_allowed()
+    {
+        $guru = User::factory()->create([
+            'role' => 'guru',
+            'is_active' => true,
+        ]);
+
+        RolePermission::create([
+            'role' => 'guru',
+            'permission' => 'posts.view',
+            'is_allowed' => false,
+        ]);
+
+        RolePermission::create([
+            'role' => 'guru',
+            'permission' => 'payments.view',
+            'is_allowed' => false,
+        ]);
+
+        $this->assertFalse($guru->hasAnyAccess(['posts.view', 'payments.view']));
+    }
+
+    public function test_role_permission_feature_model_namespace_berjalan_normal()
+    {
+        $permission = RolePermission::create([
+            'role' => 'guru',
+            'permission' => 'classes.view',
+            'is_allowed' => true,
+        ]);
+
+        $this->assertInstanceOf(RolePermission::class, $permission->fresh());
+        $this->assertDatabaseHas('role_permissions', [
+            'role' => 'guru',
+            'permission' => 'classes.view',
+            'is_allowed' => true,
+        ]);
+    }
+
     public function test_student_tidak_bisa_akses_admin_panel_karena_middleware()
     {
         $student = User::factory()->create([

@@ -61,6 +61,17 @@ class GradeServiceTest extends TestCase
         $this->assertEquals(75.0, $avg);
     }
 
+    public function test_calculate_assessment_average_trims_letter_scores()
+    {
+        $assessments = [
+            ['data' => [['nilai' => ' c '], ['nilai' => ' tl '], ['nilai' => ' l ']]],
+        ];
+
+        $avg = $this->service->calculateAssessmentAverage($assessments);
+
+        $this->assertEquals(75.0, $avg);
+    }
+
     public function test_calculate_assessment_average_division_by_zero()
     {
         $assessments = [

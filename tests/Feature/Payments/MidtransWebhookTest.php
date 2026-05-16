@@ -73,6 +73,37 @@ class MidtransWebhookTest extends TestCase
         ]);
     }
 
+    public function test_webhook_can_update_payment_status_to_paid_on_capture()
+    {
+        $user = User::factory()->create();
+        $semester = Semester::create([
+            'name' => 'Ganjil',
+            'year' => '2026/2027',
+            'start_date' => now()->startOfYear(),
+            'end_date' => now()->endOfYear(),
+            'is_active' => true
+        ]);
+
+        $orderId = 'SPP-CAPTURE-' . $user->id . '-' . time();
+        $payment = Payment::create([
+            'user_id' => $user->id,
+            'semester_id' => $semester->id,
+            'order_id' => $orderId,
+            'amount' => 500000,
+            'status' => 'pending',
+        ]);
+
+        $payload = $this->signedPayload($orderId, '500000.00', 'capture');
+
+        $response = $this->postJson(route('payment.webhook'), $payload);
+
+        $response->assertStatus(200);
+        $this->assertDatabaseHas('payments', [
+            'id' => $payment->id,
+            'status' => 'paid',
+        ]);
+    }
+
     public function test_webhook_rejects_invalid_signature()
     {
         // 1. Setup Data
@@ -215,6 +246,29 @@ class MidtransWebhookTest extends TestCase
         ]);
     }
 
+    public function test_webhook_maps_failure_status_to_failed()
+    {
+        $user = User::factory()->create();
+        $semester = Semester::create(['name' => 'Genap', 'year' => '2026/2027', 'start_date' => now()->startOfYear(), 'end_date' => now()->endOfYear(), 'is_active' => true]);
+
+        $orderId = 'SPP-FAILURE-' . $user->id . '-' . time();
+        $payment = Payment::create([
+            'user_id' => $user->id,
+            'semester_id' => $semester->id,
+            'order_id' => $orderId,
+            'amount' => 500000,
+            'status' => 'pending',
+        ]);
+
+        $response = $this->postJson(route('payment.webhook'), $this->signedPayload($orderId, '500000.00', 'failure'));
+
+        $response->assertStatus(200);
+        $this->assertDatabaseHas('payments', [
+            'id' => $payment->id,
+            'status' => 'failed',
+        ]);
+    }
+
     public function test_payment_relation_to_user_and_semester_works()
     {
         $user = User::factory()->create();
@@ -230,5 +284,20 @@ class MidtransWebhookTest extends TestCase
 
         $this->assertEquals($user->id, $payment->student->id);
         $this->assertEquals($semester->id, $payment->semester->id);
+    }
+
+    private function signedPayload(string $orderId, string $grossAmount, string $transactionStatus): array
+    {
+        $statusCode = '200';
+        $serverKey = 'test-server-key';
+
+        return [
+            'order_id' => $orderId,
+            'status_code' => $statusCode,
+            'gross_amount' => $grossAmount,
+            'transaction_status' => $transactionStatus,
+            'signature_key' => hash('sha512', $orderId . $statusCode . $grossAmount . $serverKey),
+            'payment_type' => 'bank_transfer',
+        ];
     }
 }

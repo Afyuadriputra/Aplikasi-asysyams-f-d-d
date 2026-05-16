@@ -51,6 +51,8 @@ class FilamentResourceTest extends TestCase
             'admin/site-settings',
             'admin/raport',
             'admin/candidates',
+            'admin/semesters',
+            'admin/users',
         ];
 
         foreach ($resources as $url) {
@@ -78,6 +80,51 @@ class FilamentResourceTest extends TestCase
 
         $response = $this->get('admin/meetings');
         $response->assertStatus(200);
+    }
+
+    public function test_resources_use_expected_model_namespaces()
+    {
+        $this->assertSame(Payment::class, \App\Filament\Resources\PaymentResource::getModel());
+        $this->assertSame(Post::class, \App\Filament\Resources\PostResource::getModel());
+        $this->assertSame(ClassGroup::class, \App\Filament\Resources\ClassGroupResource::getModel());
+        $this->assertSame(Meeting::class, \App\Filament\Resources\MeetingResource::getModel());
+        $this->assertSame(Assessment::class, \App\Filament\Resources\AssessmentResource::getModel());
+        $this->assertSame(Evaluation::class, \App\Filament\Resources\EvaluationResource::getModel());
+        $this->assertSame(Grade::class, \App\Filament\Resources\GradeResource::getModel());
+        $this->assertSame(RolePermission::class, \App\Filament\Resources\RolePermissionResource::getModel());
+        $this->assertSame(SiteSetting::class, \App\Filament\Resources\SiteSettingResource::getModel());
+        $this->assertSame(Semester::class, \App\Filament\Resources\SemesterResource::getModel());
+        $this->assertSame(User::class, \App\Filament\Resources\UserResource::getModel());
+        $this->assertSame(User::class, \App\Filament\Resources\CandidateResource::getModel());
+        $this->assertSame(ClassGroup::class, \App\Filament\Resources\ReportResource::getModel());
+    }
+
+    public function test_resource_actions_follow_permissions()
+    {
+        $guru = User::factory()->create(['role' => 'guru', 'is_active' => true]);
+        $payment = Payment::create([
+            'user_id' => User::factory()->create(['role' => 'student'])->id,
+            'semester_id' => Semester::first()->id,
+            'order_id' => 'PERMISSION-ACTION-1',
+            'amount' => 100000,
+            'status' => 'pending',
+        ]);
+
+        $this->actingAs($guru);
+        $this->assertFalse(\App\Filament\Resources\PaymentResource::canViewAny());
+        $this->assertFalse(\App\Filament\Resources\PaymentResource::canCreate());
+        $this->assertFalse(\App\Filament\Resources\PaymentResource::canEdit($payment));
+        $this->assertFalse(\App\Filament\Resources\PaymentResource::canDelete($payment));
+
+        RolePermission::create(['role' => 'guru', 'permission' => 'payments.view', 'is_allowed' => true]);
+        RolePermission::create(['role' => 'guru', 'permission' => 'payments.create', 'is_allowed' => true]);
+        RolePermission::create(['role' => 'guru', 'permission' => 'payments.update', 'is_allowed' => true]);
+        RolePermission::create(['role' => 'guru', 'permission' => 'payments.delete', 'is_allowed' => true]);
+
+        $this->assertTrue(\App\Filament\Resources\PaymentResource::canViewAny());
+        $this->assertTrue(\App\Filament\Resources\PaymentResource::canCreate());
+        $this->assertTrue(\App\Filament\Resources\PaymentResource::canEdit($payment));
+        $this->assertTrue(\App\Filament\Resources\PaymentResource::canDelete($payment));
     }
 
     public function test_student_cannot_access_admin_panel()

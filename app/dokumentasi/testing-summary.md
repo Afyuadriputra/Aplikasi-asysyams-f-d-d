@@ -1,54 +1,99 @@
-# Summary Dokumentasi Testing - Asy-Syams
+# Testing Summary Asy-Syams
 
-Dokumentasi ini merangkum seluruh infrastruktur testing yang telah diimplementasikan setelah migrasi ke arsitektur *Feature-Driven MVC + Service Layer*.
+## Ringkasan
 
-## 1. Arsitektur Testing
-Testing dibagi menjadi dua kategori utama sesuai standar Laravel:
-- **Unit Testing**: Menguji logic bisnis murni di level Service tanpa menyentuh database (kecuali yang memerlukan dependensi minimal). Fokus utama: `GradeCalculationService`.
-- **Feature Testing**: Menguji flow fitur dari request (URL) hingga response, termasuk validasi database, relasi, dan integrasi antar fitur.
+Audit dilakukan pada project Laravel 12 + Filament 3.3 dengan arsitektur Feature-Driven MVC + Service Layer.
 
-## 2. Daftar Kategori Test
-Seluruh test tersusun rapi di folder `tests/` sebagai berikut:
+Baseline sebelum perubahan:
+- `php artisan route:list`: 78 routes.
+- `php artisan test`: 90 tests passed, 234 assertions.
+- `composer dump-autoload`: berhasil.
+- `php artisan optimize:clear`: gagal pada cache store database karena MySQL lokal `127.0.0.1:3307` tidak aktif.
 
-### Unit Tests
-- `Grades/GradeServiceTest`: Perhitungan nilai huruf (L/C/TL), nilai numerik, rata-rata harian, rata-rata evaluasi, dan nilai akhir.
+Hasil akhir:
+- `php artisan route:list`: 78 routes.
+- `php artisan test`: 107 tests passed, 3076 assertions.
+- `CACHE_STORE=array php artisan optimize:clear`: berhasil.
+- `php artisan test --coverage`: tidak tersedia karena Xdebug/PCOV belum terpasang.
 
-### Feature Tests
-- **Auth & Access**: `Auth/*`, `Permissions/PermissionAccessTest`, `Permissions/RbacTest`.
-- **Academic**: `Academic/AcademicFlowTest` (Semester, Subject, ClassGroup).
-- **Meetings**: `Meetings/MeetingFlowTest`, `Meetings/AttendanceTest`.
-- **Grades**: `Students/StudentDashboardTest` (Data isolation).
-- **Payments**: `Payments/MidtransWebhookTest`, `Students/StudentDashboardPaymentTest`.
-- **Posts**: `Posts/PostFlowTest` (Slug, published status).
-- **Contacts**: `Contacts/ContactTest` (Mail fake, validation).
-- **SiteSettings**: `SiteSettings/SiteSettingTest` (Dynamic config).
-- **Filament**: `Filament/FilamentResourceTest` (Rendering & access control).
-- **Regression**: `Regression/NamespaceRegressionTest` (Verifikasi resolusi class pasca-migrasi).
+## Kategori Test
 
-## 3. Statistik Final
-- **Total Tests**: 89
-- **Total Assertions**: 230
-- **Status**: 100% Pass
+Test yang tersedia dan diperkuat:
+- Architecture / namespace regression.
+- Auth, role, RBAC, dan permission middleware.
+- Filament resource render, namespace model, dan action permission.
+- Academic flow dan relasi class group.
+- Meetings dan attendance, termasuk status `present`, `sick`, `permission`, `alpha`.
+- GradeCalculationService.
+- Report PDF dengan mock DomPDF.
+- Payment dan Midtrans webhook dengan fake payload/signature.
+- Student dashboard dan isolasi data antar student.
+- Posts, contacts, site settings, dan SPMB deadline.
+- Security regression untuk debug routes, admin access, webhook signature, dan data isolation.
 
-## 4. Flow Utama yang Terlindungi
-1. **RBAC & Security**: Superadmin bypass, Guru sesuai permission, Student diblokir dari admin.
-2. **Data Isolation**: Student hanya bisa melihat nilai, absensi, dan pembayaran milik sendiri.
-3. **Grade Calculation**: Mendukung input 'L', 'C', 'TL' (case-insensitive) dan angka numerik murni.
-4. **Payment Webhook**: Idempotency check dan pengamanan signature key Midtrans.
-5. **Academic Core**: Relasi antar Kelas, Santri, Ustad, dan Mata Pelajaran tetap utuh setelah migrasi namespace.
+## Bug Logic Diperbaiki
 
-## 5. Bug Logic & Security Fixes
-1. **Debug Route Protection**: Route berbahaya seperti `/check-db`, `/clear-cache-sekarang`, `/cek-rute`, dan `/cek-pintu` kini dibatasi hanya untuk environment `local`. Terverifikasi via `SecurityRegressionTest`.
-2. **Grade Case-Sensitivity**: Sebelumnya input huruf kecil ('l', 'c') dianggap nol. Sekarang dinormalisasi via `strtoupper()`.
-3. **Missing Import in Routes**: Route PDF sempat error karena missing namespace `ClassGroup` (Sudah diperbaiki).
-4. **Hardcoded IDs in Tests**: Memperbaiki Foreign Key error dengan menggunakan model factory/create asli.
-5. **Incorrect slug in ReportResource**: Memperbaiki mapping URL dari `/reports` ke `/raport`.
+1. Midtrans `failure` status belum dipetakan ke `failed`.
+   - File: `app/Features/Payments/Services/MidtransService.php`
+   - File: `app/Features/Payments/Controllers/PaymentController.php`
+   - Alasan: webhook atau finish redirect dengan `transaction_status=failure` sebelumnya tetap `pending`.
 
-## 6. Catatan Khusus
-- **SubjectResource.php**: File ini ditemukan kosong (0 bytes) namun tidak mengganggu flow utama. Disarankan untuk dibuat ulang jika fitur Manajemen Mapel ingin diaktifkan di Filament.
-- **Dependency PHP GD**: Test untuk PDF menggunakan Mocking karena lingkungan server/CLI saat ini tidak memiliki ekstensi GD. Untuk produksi, pastikan `php-gd` terinstall agar `dompdf` berfungsi.
+2. Halaman riwayat absensi siswa error 500.
+   - File: `app/Features/Students/Controllers/StudentController.php`
+   - File: `resources/views/pages/student/attendance.blade.php`
+   - Alasan: kode lama memakai `meeting.subject`, sementara model `Meeting` sekarang memakai `class_group_id`; akses subject harus lewat `meeting.classGroup.subject`.
 
-## 7. Rekomendasi Lanjutan
-- Implementasi **Integration Test** untuk flow pendaftaran SPMB hingga pembayaran lunas otomatis masuk kelas.
-- Penambahan **Browser Testing (Laravel Dusk)** untuk menguji interaksi UI Filament yang kompleks.
-- Penambahan **Load Testing** pada modul GradeCalculation jika jumlah santri meningkat drastis.
+## Route Penting Diverifikasi
+
+- `/dashboard`
+- `/attendance`
+- `/payment/webhook`
+- `/payment/checkout`
+- `/berita/{slug}`
+- `/contact/send`
+- `/rapor-pdf/{class_group}/{user}`
+- `/admin`
+- `/admin/payments`
+- `/admin/users`
+- `/admin/semesters`
+- `/admin/site-settings/spmb-deadline`
+- Debug routes `/check-db`, `/clear-cache-sekarang`, `/cek-rute`, `/cek-pintu` return 404 di testing.
+
+## Security Notes
+
+- Guest tetap diarahkan ke login untuk dashboard dan admin.
+- Student aktif diarahkan keluar dari admin ke dashboard.
+- Guru tanpa permission resource tidak bisa membuka direct admin resource URL.
+- Superadmin tetap bypass permission.
+- Webhook invalid signature tidak mengubah payment.
+- Payment yang sudah `paid` tidak downgrade akibat webhook ulang.
+- Dashboard dan attendance student hanya mengambil data milik user login.
+
+## Catatan
+
+- `SubjectResource.php` masih kosong dan tidak diubah.
+- PDF test memakai mock DomPDF agar tidak bergantung pada driver PDF/GD environment.
+- Midtrans API asli tidak dipanggil; semua test memakai fake payload dan fake signature.
+- Tidak ada URL route, nama route, schema database, migration, atau desain UI yang diubah.
+- Perubahan Blade hanya memperbaiki path data absensi yang rusak, tanpa mengubah tampilan.
+
+## Cara Menjalankan Test
+
+```bash
+composer dump-autoload
+php artisan optimize:clear
+php artisan route:list
+php artisan test
+```
+
+Jika cache store lokal memakai database dan MySQL tidak aktif, jalankan:
+
+```powershell
+$env:CACHE_STORE='array'; php artisan optimize:clear
+```
+
+Coverage membutuhkan Xdebug atau PCOV:
+
+```bash
+php artisan test --coverage
+```
