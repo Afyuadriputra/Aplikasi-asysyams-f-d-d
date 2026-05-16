@@ -1,80 +1,535 @@
-# Dokumentasi Sistem & Pengujian YPTQ Asy-Syams
+# Dokumentasi Project Asy-Syams
 
-## 1. Ikhtisar Sistem
-**Asy-Syams** adalah sebuah platform berbasis web yang dikembangkan menggunakan **Laravel 12** dan **Filament v3** (TALL Stack) untuk mengelola operasional Yayasan Pendidikan Tilawah Qur'an. Sistem ini mencakup manajemen santri, penjadwalan kelas, rekap absensi, penilaian (Grade/Assessment), hingga integrasi pembayaran *online* dengan Midtrans.
+## 1. Ringkasan Project
 
-Sistem dirancang mengadopsi prinsip **Clean Architecture** dengan memisahkan antarmuka (Controller/Livewire) dari logika bisnis utama (*Service Layer*), menjadikannya lebih *modular*, mudah diuji (*testable*), dan mudah dikembangkan di kemudian hari (*scalable*).
+**Asy-Syams** adalah aplikasi web berbasis **Laravel 12** dan **Filament v3** untuk mendukung operasional Yayasan Pendidikan Tilawah Qur'an. Sistem mencakup halaman publik, registrasi santri, dashboard santri, pengelolaan akademik, pertemuan, absensi, penilaian, rapor PDF, berita, kontak, pengaturan situs, RBAC, dan integrasi pembayaran Midtrans.
 
----
+Backend project saat ini menggunakan arsitektur **Feature-Driven MVC + Service Layer**. Artinya kode domain utama dikelompokkan berdasarkan fitur bisnis, bukan lagi berdasarkan jenis file global seperti `Models`, `Controllers`, atau `Services` saja. Pendekatan ini membuat batas tanggung jawab tiap fitur lebih jelas dan memudahkan developer baru memahami alur sistem.
 
-## 2. Arsitektur & Cara Kerja Sistem (Modul Utama)
-
-### A. Autentikasi dan RBAC (Role-Based Access Control)
-Sistem membedakan hak akses (*roles*) ke dalam tiga kategori: `superadmin`, `admin` (ustad/pengajar), dan `student` (santri).
-- **Cara Kerja:** Model `User` mengimplementasikan fungsi kontrak `canAccessPanel(Panel $panel)` milik Filament. Hanya *user* dengan role `admin` atau `superadmin` yang diizinkan untuk masuk ke dasbor backend Filament (misal: `/admin`). Jika *student* memaksa masuk, sistem secara otomatis melemparkan HTTPException 403 (Forbidden) atau akan diarahkan keluar (*redirect*).
-- **Proteksi Aktif:** Terdapat *Middleware* `EnsureUserIsActive` yang memastikan hanya *user* berstatus `is_active = true` yang bisa menavigasi ke fitur-fitur sensitif.
-
-### B. Modul Registrasi (SPMB) & Tampilan Depan
-- **Cara Kerja:** Pengunjung dapat melihat halaman *Home* dan form registrasi SPMB (*Seleksi Penerimaan Murid Baru*). 
-- **Refactoring:** Semua *logic* penarikan artikel berita, gambar *Hero Background*, dan hitung mundur kalender batas akhir pendaftaran dienkapsulasi di dalam `app/Services/HomeService.php`. Hal ini membuat rute `web.php` bebas dari injeksi kueri *Database* yang berat. `HomeController` hanya memanggil method dari service tersebut.
-
-### C. Modul Akademik & Kehadiran (Attendance)
-- **Cara Kerja:** Melalui panel Filament (contohnya `MeetingResource`), Ustad dapat membuat jadwal *Meeting* (pertemuan) untuk *Class Group* yang diajarnya.
-- Begitu Ustad memilih *Class Group*, sebuah form dengan konsep *repeater* otomatis terisi oleh daftar santri dalam kelas tersebut.
-- Ustad menetapkan presensi santri via tombol interaktif (*Toggle Buttons*) untuk status `present`, `sick`, `permission`, atau `alpha`. Data ini disimpan di tabel `attendances` dan terikat dengan ID pertemuan.
-
-### D. Penilaian (Grades Calculation)
-- **Cara Kerja:** Evaluasi nilai santri terbagi dalam format matriks `Assessment` (penilaian harian menggunakan string huruf L/C/TL) dan `Evaluation` (penilaian ujian berbasis poin persentase).
-- Semua beban kalkulasi dan *parsing* JSON dikerjakan oleh **`GradeCalculationService`**.
-- *Service* ini akan secara cermat mengalkulasi *Assessment Average* (contoh: L=100, C=75, TL=50) dan *Evaluation Average*, kemudian meleburkannya dalam bobot pembagian nilai akhir (contoh: 40% rata-rata Assessment + 60% rata-rata Evaluation).
-- Disediakan proteksi dari *Division by Zero* (pembagian dengan angka 0) jika data *assessment* kosong.
-
-### E. Integrasi Keuangan (Midtrans Payment Webhook)
-- **Cara Kerja:** Santri dari *Dashboard* miliknya (`/dashboard`) akan melihat tombol "Bayar Sekarang" saat terdapat tagihan dengan status `pending`. Begitu ditekan, komponen *Snap* dari Midtrans akan meluncur di layar web (tanpa harus ke halaman eksternal).
-- **Sistem Webhook:** Backend Laravel mendengarkan pemberitahuan asinkronus (callback) melalui route `/payment/webhook`.
-- Route dilempar menuju **`MidtransService`**. Di sinilah validasi *Signature Key* dilakukan demi memverifikasi keaslian paket data dari *server* Midtrans.
-- *Idempotent Update:* Kode kebal terhadap balapan pembaruan (*Race Condition*). Jika Midtrans tak sengaja mengirimkan webhook untuk order yang sudah lunas (status `paid` atau `success`), maka sistem tidak merespon/mencatat ulang.
+Status pengujian terbaru:
+- **107 tests passed**
+- **3076 assertions passed**
+- Coverage belum tersedia karena driver **Xdebug/PCOV** belum terpasang.
 
 ---
 
-## 3. Dokumentasi Pengujian Sistem (Test Suite)
+## 2. Arsitektur Terbaru
 
-Kerangka kerja tes dijalankan murni dengan **PHPUnit** (`phpunit.xml`) memanfaatkan *database* isolasi in-memory (`sqlite:memory`) sehingga pengujian tidak menyentuh database produksi. 
+Arsitektur utama:
 
-Sistem saat ini dalam keadaan **100% PASS (Zero Bugs)** pada 6 ruang lingkup skenario berikut:
+```text
+Route -> Controller -> Service -> Model -> Database -> Response/View/JSON
+```
 
-### 1. `SpmbRegistrationTest` (Feature Test)
-*Menguji visibilitas sistem pada tamu/public.*
-- **`test_home_page_returns_a_successful_response`**: Menyimulasikan *GET Request* ke URL `/`. **Hasil: PASS** (HTTP 200).
-- **`test_registration_page_returns_a_successful_response`**: Menyimulasikan akses form `/register`. **Hasil: PASS** (HTTP 200).
+Prinsip yang digunakan:
+- **Feature-Driven MVC**: controller, model, dan service domain ditempatkan di `app/Features/{NamaFitur}`.
+- **Service Layer**: logic bisnis penting dipisahkan dari controller agar lebih mudah diuji dan dirawat.
+- **Filament Admin tetap terpusat**: resource admin tetap berada di `app/Filament/Resources`.
+- **Laravel auth tetap mengikuti struktur standar**: auth controller, profile controller, dan base controller tetap berada di `app/Http/Controllers`.
+- **Middleware tetap terpusat**: seluruh middleware aplikasi tetap berada di `app/Http/Middleware`.
+- **User tetap global**: `User.php` tetap berada di `app/Models/User.php` karena dipakai lintas fitur.
 
-### 2. `RbacTest` (Feature Test)
-*Menguji keamanan pintu masuk administrasi Filament (RBAC).*
-- **`test_santri_cannot_access_admin_panel`**: *User* `student` diotentikasi lalu meretas akses masuk ke `/admin/meetings`. **Hasil: PASS**. *Middleware Filament melempar 403 Forbidden dengan tepat.*
-- **`test_ustad_can_access_admin_panel`**: *User* `admin` diotentikasi lalu masuk ke menu administrasi yang sama. **Hasil: PASS**. *(Akses diizinkan dengan HTTP 200).*
+Model utama selain `User` sudah dipindahkan ke fitur masing-masing. Contoh:
+- `Payment` berada di `App\Features\Payments\Models\Payment`
+- `Grade`, `Assessment`, dan `Evaluation` berada di `App\Features\Grades\Models`
+- `ClassGroup`, `Semester`, dan `Subject` berada di `App\Features\Academic\Models`
+- `Meeting` dan `Attendance` berada di `App\Features\Meetings\Models`
 
-### 3. `GradeCalculationTest` (Unit Test)
-*Menguji akurasi kalkulasi matematika internal milik `GradeCalculationService` tanpa perlu melibatkan Database/Browser.*
-- **`test_calculate_assessment_average_perfect_score`**: Input nilai rata 'L'. **Hasil: PASS** (Akurasi Rata-rata: 100.0).
-- **`test_calculate_assessment_average_mixed_scores`**: Input kombinasi huruf mutu ('L', 'C', 'TL'). **Hasil: PASS** (Dapat dikonversi dan dikalkulasi sempurna).
-- **`test_calculate_assessment_average_division_by_zero`**: Input array kosong untuk menyimulasikan kelalaian penginputan Ustad. **Hasil: PASS** (Dikembalikan sebagai angka `0.0`, error *fatal* terhindari).
-- **`test_calculate_evaluation_average_decimal_scores`**: Menyimulasikan ujian dengan poin riil bertipe Desimal/Float. **Hasil: PASS**.
-- **`test_calculate_final_grade`**: Memasukkan bobot ganda untuk tes output akumulasi rapor (40% dan 60%). **Hasil: PASS** (Akurasi output presisi tinggi sesuai kalkulator).
+---
 
-### 4. `AttendanceTest` (Feature Test / Livewire Filament)
-*Menguji fungsionalitas UI komponen Livewire `CreateMeeting` di panel Filament.*
-- **`test_ustad_can_create_meeting_and_save_attendance`**: 
-    1. Sistem secara virtual *mock* kelas, mata pelajaran, dan relasi santri.
-    2. Menyimulasikan ketikan/input data absen dari *form* Livewire/Filament Ustad.
-    3. Pengecekan pada database.
-    - **Hasil: PASS**. Kolom kehadiran pada tabel `attendances` berhasil disimpan dan direlasikan ke id santri, id *meeting*, secara utuh.
+## 3. Struktur Folder Backend
 
-### 5. `MidtransWebhookTest` (Feature Test)
-*Skenario vital untuk proteksi celah peretasan dari simulasi IP di luar aplikasi.*
-- **`test_webhook_can_update_payment_status_to_paid_on_settlement`**: Mendorong paket JSON webhook berisi instruksi *settlement* Midtrans dilengkapi `signature_key` akurat (enkripsi SHA512). **Hasil: PASS**. Webhook me-respons 200 dan baris `status` tagihan berubah menjadi `paid`.
-- **`test_webhook_rejects_invalid_signature`**: Mendorong perintah mutasi saldo secara ilegal menggunakan *Signature Key* bohongan. **Hasil: PASS**. Webhook menolak *(HTTP 403)*, tagihan diamankan dan status tidak tertimpa (*tetap `pending`*).
+Struktur backend utama:
 
-### 6. `StudentDashboardPaymentTest` (Feature Test / UI Assertion)
-*Mengecek render logika Tampilan Blade dari sisi Santri.*
-- **`test_pay_button_is_visible_when_status_is_pending`**: Status dummy disetel ke `pending`. **Hasil: PASS**. Assertions mendeteksi keberadaan tag HTML tombol *Bayar* secara utuh dan teks peringatan "MENUNGGU PEMBAYARAN".
-- **`test_pay_button_is_disabled_and_shows_lunas_when_status_is_paid`**: Status di database di-mock menjadi `paid`. **Hasil: PASS**. Tombol *Bayar* lenyap total dari DOM UI, lalu pesan keterangan berhasil diganti menjadi tulisan "Sudah Lunas" dan UI menampilkan tulisan "LUNAS".
+```text
+app/
+├── Features/
+│   ├── Academic/
+│   ├── Contacts/
+│   ├── Grades/
+│   ├── Meetings/
+│   ├── Payments/
+│   ├── Permissions/
+│   ├── Posts/
+│   ├── Reports/
+│   ├── SiteSettings/
+│   └── Students/
+├── Filament/
+│   ├── Concerns/
+│   └── Resources/
+├── Http/
+│   ├── Controllers/
+│   ├── Middleware/
+│   └── Requests/
+├── Mail/
+├── Models/
+│   └── User.php
+├── Providers/
+└── View/
+```
+
+File penting:
+- `app/Models/User.php`: model user global, role, permission helper, dan akses panel Filament.
+- `app/Filament/Resources`: semua resource admin Filament.
+- `app/Filament/Concerns/ChecksResourcePermission.php`: trait permission resource Filament.
+- `app/Http/Middleware/EnsureUserHasPermission.php`: proteksi permission route web.
+- `app/Http/Middleware/EnsureUserIsActive.php`: proteksi user aktif.
+- `app/Http/Middleware/RedirectUnauthorizedFilamentAccess.php`: proteksi akses admin Filament.
+- `app/Providers/Filament/AdminPanelProvider.php`: konfigurasi panel admin Filament.
+
+---
+
+## 4. Penjelasan Fitur di `app/Features`
+
+### Academic
+
+Berisi domain akademik dasar:
+- `ClassGroup`
+- `Semester`
+- `Subject`
+- `AcademicService`
+
+Fitur ini menjadi fondasi untuk kelas, semester, mata pelajaran, relasi guru, relasi santri, meeting, assessment, evaluation, dan report.
+
+### Contacts
+
+Mengelola form kontak publik:
+- `ContactController`
+- `ContactService`
+
+Pengiriman email kontak diuji menggunakan `Mail::fake()` agar tidak mengirim email asli saat test.
+
+### Grades
+
+Mengelola penilaian:
+- `Assessment`
+- `Evaluation`
+- `Grade`
+- `GradeCalculationService`
+
+`GradeCalculationService` menghitung:
+- nilai huruf assessment seperti `L`, `C`, `TL`
+- nilai lowercase dan nilai dengan spasi seperti `" c "`
+- nilai numerik seperti `80`, `90`, `100`
+- rata-rata assessment
+- rata-rata evaluation
+- final grade sesuai bobot sistem
+- data kosong tanpa division by zero
+
+### Meetings
+
+Mengelola pertemuan dan absensi:
+- `Meeting`
+- `Attendance`
+- `MeetingService`
+
+Status attendance yang valid:
+- `present`
+- `sick`
+- `permission`
+- `alpha`
+
+Meeting sekarang terhubung ke `ClassGroup`, dan subject dibaca melalui:
+
+```php
+$meeting->classGroup->subject
+```
+
+### Payments
+
+Mengelola pembayaran santri dan integrasi Midtrans:
+- `Payment`
+- `PaymentController`
+- `MidtransService`
+
+`MidtransService` bertugas memvalidasi signature webhook, mencari payment berdasarkan `order_id`, memetakan status transaksi, dan menjaga update tetap idempotent.
+
+### Permissions
+
+Mengelola RBAC:
+- `RolePermission`
+- `PermissionService`
+
+Permission dibaca oleh `User::hasAccess()` dan `User::hasAnyAccess()`. Superadmin bypass semua permission, sedangkan guru dan student mengikuti data `role_permissions`.
+
+### Posts
+
+Mengelola berita/artikel publik:
+- `Post`
+- `PostController`
+- `PostService`
+
+Post memiliki relasi author ke `User`. Halaman detail post menggunakan slug.
+
+### Reports
+
+Mengelola laporan dan rapor:
+- `AssessmentReportController`
+- `ReportService`
+
+Route rapor PDF:
+
+```text
+/rapor-pdf/{class_group}/{user}
+```
+
+Route ini menggunakan model binding `ClassGroup` dari namespace baru:
+
+```php
+App\Features\Academic\Models\ClassGroup
+```
+
+### SiteSettings
+
+Mengelola pengaturan situs:
+- `SiteSetting`
+- `SiteSettingController`
+- `SiteSettingService`
+
+Termasuk pengaturan `spmb_deadline`, hero image, dan setting landing page lain. Halaman Filament `ManageSPMBDeadline` memakai namespace model baru `App\Features\SiteSettings\Models\SiteSetting`.
+
+### Students
+
+Mengelola dashboard dan halaman santri:
+- `StudentController`
+- `StudentService`
+
+Dashboard santri menampilkan ringkasan pembayaran, absensi, dan nilai milik santri yang sedang login. Query dashboard dan attendance dibatasi berdasarkan `Auth::user()` agar data antar santri tidak bocor.
+
+---
+
+## 5. Alur Kerja Request
+
+Alur umum request web:
+
+```text
+routes/web.php
+    -> Controller di app/Features/{Feature}/Controllers
+    -> Service di app/Features/{Feature}/Services
+    -> Model di app/Features/{Feature}/Models atau app/Models/User.php
+    -> Database
+    -> View/Redirect/JSON/PDF Response
+```
+
+Contoh alur dashboard santri:
+
+```text
+GET /dashboard
+    -> StudentController@dashboard
+    -> Payment, Attendance, Grade, Semester
+    -> resources/views/pages/student/dashboard.blade.php
+```
+
+Contoh alur contact:
+
+```text
+POST /contact/send
+    -> ContactController@send
+    -> ContactService
+    -> ContactFormMail
+    -> Redirect response
+```
+
+Contoh alur rapor PDF:
+
+```text
+GET /rapor-pdf/{class_group}/{user}
+    -> Route closure dengan middleware auth + reports.download
+    -> ClassGroup model binding
+    -> User model binding
+    -> DomPDF loadView
+    -> PDF stream response
+```
+
+---
+
+## 6. Filament Admin dan RBAC
+
+Filament admin tetap berada di:
+
+```text
+app/Filament/Resources
+```
+
+Panel dikonfigurasi di:
+
+```text
+app/Providers/Filament/AdminPanelProvider.php
+```
+
+Role utama:
+- `superadmin`: dapat mengakses seluruh panel dan bypass permission.
+- `guru`: dapat mengakses admin jika memiliki minimal satu permission panel yang diizinkan.
+- `student`: tidak boleh mengakses admin panel dan diarahkan ke dashboard.
+
+Komponen RBAC penting:
+- `User::canAccessPanel()`
+- `User::hasAccess()`
+- `User::hasAnyAccess()`
+- `RolePermission`
+- `ChecksResourcePermission`
+- `RedirectUnauthorizedFilamentAccess`
+- `EnsureUserHasPermission`
+
+Resource Filament menggunakan model namespace baru, misalnya:
+
+```php
+App\Filament\Resources\PaymentResource
+    -> App\Features\Payments\Models\Payment
+```
+
+Catatan penting:
+- `SubjectResource.php` saat ini masih kosong.
+- Jika fitur Subject ingin diaktifkan di Filament, resource tersebut perlu dilengkapi form, table, permission, dan pages sesuai pola resource lain.
+- Jangan mengaktifkan atau mengisi `SubjectResource.php` tanpa test resource dan permission yang sesuai.
+
+---
+
+## 7. Alur Payment dan Midtrans Webhook
+
+Alur checkout:
+
+```text
+GET /payment/checkout
+    -> PaymentController@checkout
+    -> Semester aktif
+    -> Payment milik user login
+    -> Midtrans Snap token
+    -> JSON response
+```
+
+Alur finish redirect:
+
+```text
+GET /payment/success
+    -> PaymentController@success
+    -> Verifikasi status Midtrans jika memungkinkan
+    -> Update status payment
+    -> Redirect dashboard
+```
+
+Alur webhook:
+
+```text
+POST /payment/webhook
+    -> PaymentController@webhook
+    -> MidtransService::handleWebhook()
+    -> Validasi signature_key
+    -> Cari Payment berdasarkan order_id
+    -> Update status payment
+    -> JSON response
+```
+
+Mapping status penting:
+- `settlement` dan `capture` menjadi `paid`
+- `pending` tetap `pending`
+- `deny`, `expire`, `cancel`, dan `failure` menjadi `failed`
+
+Bug yang sudah diperbaiki:
+- Status Midtrans `failure` sebelumnya belum dipetakan ke `failed`.
+- `PaymentController::success()` sekarang juga menangani `failure`.
+- Payment yang sudah `paid` atau `success` tidak boleh downgrade menjadi `failed` atau `pending` akibat webhook ulang.
+- Invalid signature tidak mengubah data payment.
+- `order_id` tidak ditemukan tidak menyebabkan fatal error 500.
+
+---
+
+## 8. Academic, Grade, Attendance, dan Report/Rapor
+
+### Academic
+
+`ClassGroup` menjadi pusat relasi akademik:
+- belongs to `Subject`
+- belongs to `Semester`
+- belongs to teacher `User`
+- belongs to many student `User`
+- has many `Meeting`
+- has many `Assessment`
+- has many `Evaluation`
+
+### Attendance
+
+Meeting dibuat untuk `ClassGroup`, bukan langsung untuk `Subject`. Karena itu akses subject dari attendance mengikuti relasi:
+
+```php
+$attendance->meeting->classGroup->subject
+```
+
+Bug yang sudah diperbaiki:
+- `StudentController` sebelumnya eager-load `meeting.subject`.
+- Karena `Meeting` sekarang berbasis `class_group_id`, eager-load diperbaiki menjadi `meeting.classGroup.subject`.
+- `attendance.blade.php` juga diperbaiki pada path data menjadi `meeting.classGroup.subject` tanpa mengubah tampilan.
+
+### Grades
+
+Penilaian dibagi menjadi:
+- `Assessment`: data penilaian berbasis item dan nilai huruf/numerik.
+- `Evaluation`: data evaluasi berbasis item dan score.
+- `Grade`: nilai akhir per user, subject, dan semester.
+
+`GradeCalculationService` menangani konversi dan perhitungan sehingga controller/resource tidak memuat logic kalkulasi berat.
+
+### Report/Rapor
+
+Rapor PDF menggunakan:
+- `ClassGroup` dari feature Academic.
+- `User` dari `app/Models/User.php`.
+- View PDF di `resources/views/filament/report/rapor-pdf.blade.php`.
+- DomPDF sebagai generator PDF.
+
+Pada test, DomPDF dimock agar tidak bergantung pada driver PDF/GD lokal.
+
+---
+
+## 9. Testing dan Hasil Pengujian Terbaru
+
+Test framework:
+- PHPUnit 11
+- Laravel testing
+- SQLite in-memory pada `phpunit.xml`
+- Mail fake untuk kontak
+- Fake payload/signature untuk Midtrans
+- Mock DomPDF untuk PDF
+
+Hasil akhir terbaru:
+
+```text
+Tests: 107 passed
+Assertions: 3076 passed
+Routes: 78
+Coverage: belum tersedia karena Xdebug/PCOV belum terpasang
+```
+
+Kategori test yang sudah mencakup:
+- Namespace regression
+- Auth dan role
+- RBAC dan permission
+- Filament resource
+- Academic flow
+- Meetings dan attendance
+- GradeCalculationService
+- Report PDF
+- Payment dan Midtrans webhook
+- Student dashboard
+- Posts
+- Contacts
+- SiteSettings
+- Security regression
+
+Test yang diperkuat antara lain:
+- Tidak ada namespace model/service lama seperti `App\Models\Payment` atau `App\Services\MidtransService`.
+- Semua feature model dan service bisa di-resolve.
+- Superadmin bisa mengakses semua.
+- Guru tanpa permission ditolak/redirect sesuai flow sistem.
+- Student tidak bisa mengakses admin.
+- Debug routes tidak tersedia di environment testing/production.
+- Webhook invalid signature aman.
+- Data payment, attendance, dan grade antar student tetap terisolasi.
+
+---
+
+## 10. Security Hardening
+
+Peningkatan dan verifikasi keamanan:
+- Debug routes hanya didaftarkan saat `app()->environment('local')`.
+- Route debug berikut return 404 di testing:
+  - `/check-db`
+  - `/clear-cache-sekarang`
+  - `/cek-rute`
+  - `/cek-pintu`
+- Guest tidak bisa mengakses dashboard dan admin.
+- Student aktif tidak bisa mengakses admin panel.
+- Student inactive diarahkan ke halaman approval sesuai flow sistem.
+- Guru tanpa permission tidak bisa membuka resource admin tertentu.
+- Superadmin tetap bypass permission.
+- Midtrans webhook memvalidasi `signature_key`.
+- Invalid webhook tidak mengubah payment.
+- Payment paid tidak downgrade.
+- Dashboard dan attendance santri tidak menampilkan data santri lain.
+
+---
+
+## 11. Catatan Teknis dan Known Issue
+
+Catatan teknis:
+- `User.php` tetap di `app/Models/User.php` dan menjadi model global lintas fitur.
+- Filament resource tetap di `app/Filament/Resources`.
+- Middleware tetap di `app/Http/Middleware`.
+- Auth controller, `ProfileController`, dan base `Controller` tetap di `app/Http/Controllers`.
+- Service penting sekarang berada di fitur masing-masing, contohnya:
+  - `app/Features/Payments/Services/MidtransService.php`
+  - `app/Features/Grades/Services/GradeCalculationService.php`
+
+Known issue/perhatian:
+- `SubjectResource.php` masih kosong.
+- Coverage belum bisa dijalankan karena Xdebug/PCOV belum terpasang.
+- `php artisan optimize:clear` pada local tertentu bisa gagal jika cache store mengarah ke database MySQL yang tidak aktif.
+- Untuk local yang cache-nya mengarah ke MySQL, gunakan cache store array saat clear cache.
+- Jangan mengubah route, nama route, schema database, atau behavior Filament tanpa test regression.
+
+---
+
+## 12. Cara Menjalankan Command Penting
+
+Generate autoload:
+
+```bash
+composer dump-autoload
+```
+
+Clear cache Laravel:
+
+```bash
+php artisan optimize:clear
+```
+
+Jika local cache mengarah ke MySQL dan database tidak aktif:
+
+```bash
+CACHE_STORE=array php artisan optimize:clear
+```
+
+PowerShell:
+
+```powershell
+$env:CACHE_STORE='array'; php artisan optimize:clear
+```
+
+Lihat daftar route:
+
+```bash
+php artisan route:list
+```
+
+Jalankan seluruh test:
+
+```bash
+php artisan test
+```
+
+Jalankan coverage jika Xdebug/PCOV sudah tersedia:
+
+```bash
+php artisan test --coverage
+```
+
+---
+
+## 13. Rekomendasi Maintenance Lanjutan
+
+Rekomendasi yang belum dikerjakan:
+- Lengkapi `SubjectResource.php` jika Subject perlu dikelola melalui Filament.
+- Pasang Xdebug atau PCOV untuk menjalankan coverage.
+- Pertimbangkan helper/factory internal test untuk mengurangi duplikasi setup semester, subject, class group, dan user.
+- Tambahkan dokumentasi permission matrix untuk seluruh resource Filament.
+- Tambahkan test end-to-end manual checklist untuk flow pembayaran Midtrans di sandbox.
+- Review konfigurasi cache local agar `optimize:clear` tidak bergantung pada MySQL saat development.
+- Pertahankan test namespace regression setiap kali memindahkan model/service.
+
+---
+
+## 14. Kesimpulan
+
+Project Asy-Syams saat ini sudah berada pada struktur **Feature-Driven MVC + Service Layer** yang lebih jelas dan modular. Model domain utama sudah berada di fitur masing-masing, sementara `User`, Filament Resource, middleware, dan controller Laravel standar tetap berada di lokasi Laravel yang sesuai.
+
+Flow utama sistem, URL route, nama route, schema database, UI, behavior Filament, dan permission rule tetap dijaga. Perubahan terbaru berfokus pada penguatan test, security regression, dan bugfix minimal yang terbukti oleh test.
