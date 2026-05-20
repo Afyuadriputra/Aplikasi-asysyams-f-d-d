@@ -215,40 +215,23 @@ class MockupDataSeeder extends Seeder
                         ],
                         [
                             ...$payload,
-                            'data' => [
-                                [
-                                    'nama' => $student->name,
-                                    'nilai_penyetoran' => 86,
-                                    'surah' => 'Al-Fatihah',
-                                    'ayat' => '1-7',
-                                    'nilai' => 'L',
-                                ],
-                                [
-                                    'nama' => $student->name,
-                                    'nilai_penyetoran' => 78,
-                                    'surah' => 'Al-Ikhlas',
-                                    'ayat' => '1-4',
-                                    'nilai' => 'C',
-                                ],
-                            ],
+                            'data' => $this->assessmentItems($student, $type),
                         ],
                     );
                 }
 
-                Evaluation::updateOrCreate(
-                    [
-                        'class_group_id' => $classGroup->id,
-                        'user_id' => $student->id,
-                        'evaluation_number' => 1,
-                    ],
-                    [
-                        'items' => [
-                            ['name' => 'Kelancaran bacaan', 'checked' => true, 'score' => 88],
-                            ['name' => 'Ketepatan tajwid', 'checked' => true, 'score' => 84],
-                            ['name' => 'Adab saat setoran', 'checked' => true, 'score' => 92],
+                foreach ($this->evaluationItems() as $evaluationNumber => $items) {
+                    Evaluation::updateOrCreate(
+                        [
+                            'class_group_id' => $classGroup->id,
+                            'user_id' => $student->id,
+                            'evaluation_number' => $evaluationNumber,
                         ],
-                    ],
-                );
+                        [
+                            'items' => $items,
+                        ],
+                    );
+                }
 
                 Grade::updateOrCreate(
                     [
@@ -329,6 +312,82 @@ class MockupDataSeeder extends Seeder
                 'user_id' => $teacher->id,
             ],
         );
+    }
+
+    private function assessmentItems(User $student, string $type): array
+    {
+        return match ($type) {
+            'ziyadah' => [
+                [
+                    'nama' => $student->name,
+                    'nilai_penyetoran' => 88,
+                    'surah' => 'Al-Fatihah',
+                    'ayat' => '1-7',
+                    'nilai' => 'L',
+                    'catatan' => 'Setoran lancar. Panjang pendek bacaan sudah stabil.',
+                ],
+                [
+                    'nama' => $student->name,
+                    'nilai_penyetoran' => 80,
+                    'surah' => 'Al-Ikhlas',
+                    'ayat' => '1-4',
+                    'nilai' => 'C',
+                    'catatan' => 'Perlu mengulang ayat terakhir agar lebih mantap.',
+                ],
+            ],
+            'murojaah' => [
+                [
+                    'nama' => $student->name,
+                    'nilai_penyetoran' => 84,
+                    'surah' => 'An-Naba',
+                    'ayat' => '1-10',
+                    'nilai' => 'L',
+                    'catatan' => 'Murojaah baik, hafalan masih terjaga.',
+                ],
+                [
+                    'nama' => $student->name,
+                    'nilai_penyetoran' => 72,
+                    'surah' => 'An-Naziat',
+                    'ayat' => '1-8',
+                    'nilai' => 'C',
+                    'catatan' => 'Masih perlu murojaah mandiri sebelum masuk kelas.',
+                ],
+            ],
+            default => [
+                [
+                    'nama' => $student->name,
+                    'nilai_penyetoran' => 86,
+                    'surah' => 'Al-Baqarah',
+                    'ayat' => '1-5',
+                    'nilai' => 'L',
+                    'catatan' => 'Tahsin membaik. Fokus berikutnya pada makharijul huruf.',
+                ],
+                [
+                    'nama' => $student->name,
+                    'nilai_penyetoran' => 76,
+                    'surah' => 'Al-Mulk',
+                    'ayat' => '1-6',
+                    'nilai' => 'C',
+                    'catatan' => 'Perhatikan hukum mad dan dengung.',
+                ],
+            ],
+        };
+    }
+
+    private function evaluationItems(): array
+    {
+        return [
+            1 => [
+                ['name' => 'Kelancaran bacaan', 'checked' => true, 'score' => 88],
+                ['name' => 'Ketepatan tajwid', 'checked' => true, 'score' => 84],
+                ['name' => 'Adab saat setoran', 'checked' => true, 'score' => 92],
+            ],
+            2 => [
+                ['name' => 'Konsistensi murojaah', 'checked' => true, 'score' => 82],
+                ['name' => 'Kerapian hafalan baru', 'checked' => false, 'score' => 74],
+                ['name' => 'Kepercayaan diri membaca', 'checked' => true, 'score' => 86],
+            ],
+        ];
     }
 
     private function siteSettings(): void

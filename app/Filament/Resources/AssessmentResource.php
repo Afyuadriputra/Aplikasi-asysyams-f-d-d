@@ -158,6 +158,14 @@ class AssessmentResource extends Resource
                                     ])
                                     ->required()
                                     ->columnSpan(1),
+
+                                Forms\Components\Textarea::make('catatan')
+                                    ->label('Catatan Performa')
+                                    ->placeholder('Contoh: Bacaan makin lancar, masih perlu latihan mad.')
+                                    ->rows(2)
+                                    ->maxLength(500)
+                                    ->nullable()
+                                    ->columnSpanFull(),
                             ])
                             ->columns(5)
                             ->addActionLabel('+ Tambah Baris')

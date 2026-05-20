@@ -225,6 +225,8 @@
         .evaluation-table th:nth-child(1) { width: 64px; }
         .evaluation-table th:nth-child(3) { width: 48px; }
         .evaluation-table th:nth-child(4) { width: 86px; }
+
+        .note-table th:nth-child(1) { width: 64px; }
     </style>
 </head>
 <body>

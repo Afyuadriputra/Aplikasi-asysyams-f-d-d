@@ -43,6 +43,8 @@ class StudentGradeControlReportTest extends TestCase
         $response->assertSee($student->name);
         $response->assertSee('ZIYADAH');
         $response->assertSee('Al-Fatihah : 1-7');
+        $response->assertSee('CATATAN PEMBELAJARAN');
+        $response->assertSee('Bacaan sudah lancar, jaga konsistensi tempo.');
         $response->assertSeeInOrder(['EVALUASI', 'REKAP ABSENSI']);
         $response->assertSee('Kelancaran bacaan');
         $response->assertSee('Persentase');
@@ -171,7 +173,12 @@ class StudentGradeControlReportTest extends TestCase
                 'class_group_id' => $classGroup->id,
                 'assessment_type' => $type,
                 'data' => [
-                    ['surah' => 'Al-Fatihah', 'ayat' => '1-7', 'nilai' => 'L'],
+                    [
+                        'surah' => 'Al-Fatihah',
+                        'ayat' => '1-7',
+                        'nilai' => 'L',
+                        'catatan' => $type === 'ziyadah' ? 'Bacaan sudah lancar, jaga konsistensi tempo.' : null,
+                    ],
                 ],
             ]);
         }

@@ -28,7 +28,7 @@ class GradeReportServiceTest extends TestCase
             'class_group_id' => $classGroup->id,
             'assessment_type' => 'ziyadah',
             'data' => [
-                ['surah' => 'Al-Fatihah', 'ayat' => '1-7', 'nilai' => 'L'],
+                ['surah' => 'Al-Fatihah', 'ayat' => '1-7', 'nilai' => 'L', 'catatan' => 'Makharijul huruf sudah lebih stabil.'],
                 ['surah' => 'Al-Ikhlas', 'ayat' => '1-4', 'nilai' => 'C'],
             ],
         ]);
@@ -61,6 +61,8 @@ class GradeReportServiceTest extends TestCase
         $this->assertSame('An-Naba : 1-10', $row['murojaah']);
         $this->assertSame('B', $row['murojaah_score']);
         $this->assertSame('Al-Baqarah : 1-5', $row['tahsin']);
+        $this->assertSame('Makharijul huruf sudah lebih stabil.', $row['notes']);
+        $this->assertSame('Makharijul huruf sudah lebih stabil.', $report['learningNotes']->first()['note']);
     }
 
     public function test_guru_can_access_only_students_in_their_class(): void

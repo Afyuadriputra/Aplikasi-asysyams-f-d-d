@@ -117,6 +117,30 @@
         </tbody>
     </table>
 
+    <div class="summary-section note-section">
+        <div class="summary-title">CATATAN PEMBELAJARAN</div>
+        <table class="summary-table note-table">
+            <thead>
+                <tr>
+                    <th>Tanggal</th>
+                    <th>Catatan</th>
+                </tr>
+            </thead>
+            <tbody>
+                @forelse ($learningNotes as $learningNote)
+                    <tr>
+                        <td class="text-center">{{ $learningNote['date']?->format('d/m/Y') ?? '-' }}</td>
+                        <td>{{ $learningNote['note'] }}</td>
+                    </tr>
+                @empty
+                    <tr>
+                        <td colspan="2" class="empty-state">Belum ada catatan pembelajaran.</td>
+                    </tr>
+                @endforelse
+            </tbody>
+        </table>
+    </div>
+
     <div class="notes">
         <div>Keterangan:</div>
         <ol>

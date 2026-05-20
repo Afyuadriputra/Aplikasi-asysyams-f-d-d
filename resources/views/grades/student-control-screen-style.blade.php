@@ -206,4 +206,6 @@
     .evaluation-table th:nth-child(1) { width: 86px; }
     .evaluation-table th:nth-child(3) { width: 74px; }
     .evaluation-table th:nth-child(4) { width: 120px; }
+
+    .note-table th:nth-child(1) { width: 110px; }
 </style>

@@ -32,6 +32,7 @@ class GradeReportService
                 'email' => $this->setting('contact_email'),
             ],
             'rows' => $rows,
+            'learningNotes' => $this->buildLearningNotes($rows),
             'evaluationSummary' => $this->buildEvaluationSummary($student, $classGroup),
             'attendanceSummary' => $this->buildAttendanceSummary($student, $classGroup),
             'generatedAt' => now(),
@@ -101,6 +102,7 @@ class GradeReportService
                         'murojaah' => '',
                         'murojaah_score' => '',
                         'tahsin' => '',
+                        'notes' => '',
                         'signature' => '',
                     ];
                 }
@@ -121,6 +123,17 @@ class GradeReportService
 
                 return $row;
             });
+    }
+
+    private function buildLearningNotes(Collection $rows): Collection
+    {
+        return $rows
+            ->filter(fn (array $row): bool => trim((string) ($row['notes'] ?? '')) !== '')
+            ->map(fn (array $row): array => [
+                'date' => $row['date'] ?? null,
+                'note' => trim((string) $row['notes']),
+            ])
+            ->values();
     }
 
     private function buildEvaluationSummary(User $student, ?ClassGroup $classGroup): Collection
@@ -191,17 +204,30 @@ class GradeReportService
     {
         $row['ziyadah'] = $this->mergeCell($row['ziyadah'], $this->surahAyat($item));
         $row['ziyadah_score'] = $this->normalizeScore($item['nilai'] ?? null);
+        $this->fillNote($row, $item);
     }
 
     private function fillMurojaah(array &$row, array $item): void
     {
         $row['murojaah'] = $this->mergeCell($row['murojaah'], $this->surahAyat($item));
         $row['murojaah_score'] = $this->scoreToBaikKurang($item['nilai'] ?? $item['nilai_penyetoran'] ?? null);
+        $this->fillNote($row, $item);
     }
 
     private function fillTahsin(array &$row, array $item): void
     {
         $row['tahsin'] = $this->mergeCell($row['tahsin'], $this->surahAyat($item));
+        $this->fillNote($row, $item);
+    }
+
+    private function fillNote(array &$row, array $item): void
+    {
+        $row['notes'] = $this->mergeCell($row['notes'] ?? '', $this->noteFromItem($item));
+    }
+
+    private function noteFromItem(array $item): string
+    {
+        return trim((string) ($item['catatan'] ?? $item['note'] ?? $item['notes'] ?? $item['keterangan'] ?? ''));
     }
 
     private function surahAyat(array $item): string
