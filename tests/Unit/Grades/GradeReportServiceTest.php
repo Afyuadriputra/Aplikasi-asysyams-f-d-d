@@ -6,8 +6,10 @@ use App\Features\Academic\Models\ClassGroup;
 use App\Features\Academic\Models\Semester;
 use App\Features\Academic\Models\Subject;
 use App\Features\Grades\Models\Assessment;
+use App\Features\Grades\Models\Evaluation;
 use App\Features\Grades\Models\Grade;
 use App\Features\Grades\Services\GradeReportService;
+use App\Features\Meetings\Models\Meeting;
 use App\Features\Permissions\Models\RolePermission;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -72,6 +74,47 @@ class GradeReportServiceTest extends TestCase
         $this->assertTrue($service->canAccessStudentReport($teacher, $student, $grade));
         $this->assertFalse($service->canAccessStudentReport($otherTeacher, $student, $grade));
         $this->assertTrue($classGroup->students()->whereKey($student->id)->exists());
+    }
+
+    public function test_build_student_control_report_includes_evaluation_before_attendance_summary(): void
+    {
+        [$student, $classGroup, $grade, $teacher] = $this->makeAcademicData();
+        $meeting = Meeting::create([
+            'class_group_id' => $classGroup->id,
+            'user_id' => $teacher->id,
+            'title' => 'Pertemuan 1',
+            'date' => now(),
+        ]);
+
+        foreach (['present', 'present', 'sick', 'permission', 'alpha'] as $index => $status) {
+            $meeting->attendances()->create([
+                'user_id' => $student->id,
+                'status' => $status,
+            ]);
+        }
+
+        Evaluation::create([
+            'user_id' => $student->id,
+            'class_group_id' => $classGroup->id,
+            'evaluation_number' => 1,
+            'items' => [
+                ['name' => 'Kelancaran bacaan', 'checked' => true, 'score' => 88],
+                ['name' => 'Ketepatan tajwid', 'checked' => false, 'score' => 70],
+            ],
+        ]);
+
+        $report = app(GradeReportService::class)->buildStudentControlReport($student, $grade);
+
+        $this->assertSame('Kelancaran bacaan', $report['evaluationSummary'][0]['item']);
+        $this->assertSame('88', $report['evaluationSummary'][0]['score']);
+        $this->assertSame('Tercapai', $report['evaluationSummary'][0]['status']);
+        $this->assertSame('Belum Tercapai', $report['evaluationSummary'][1]['status']);
+        $this->assertSame(2, $report['attendanceSummary']['present']);
+        $this->assertSame(1, $report['attendanceSummary']['sick']);
+        $this->assertSame(1, $report['attendanceSummary']['permission']);
+        $this->assertSame(1, $report['attendanceSummary']['alpha']);
+        $this->assertSame(5, $report['attendanceSummary']['total']);
+        $this->assertSame(40.0, $report['attendanceSummary']['percentage']);
     }
 
     public function test_superadmin_can_access_any_student_report_and_student_cannot(): void

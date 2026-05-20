@@ -185,6 +185,46 @@
             margin: 3px 0 0 17px;
             padding: 0;
         }
+
+        .summary-section {
+            margin-top: 8px;
+        }
+
+        .summary-title {
+            font-family: DejaVu Sans, Arial, sans-serif;
+            font-size: 9px;
+            font-weight: bold;
+            margin-bottom: 3px;
+            text-transform: uppercase;
+        }
+
+        .summary-table {
+            border-collapse: collapse;
+            table-layout: fixed;
+            width: 100%;
+        }
+
+        .summary-table th,
+        .summary-table td {
+            border: 0.7px solid #111111;
+            font-size: 8.8px;
+            line-height: 1.15;
+            padding: 3px 3px;
+            vertical-align: top;
+            word-wrap: break-word;
+        }
+
+        .summary-table th {
+            background-color: #eeeeee;
+            font-family: DejaVu Sans, Arial, sans-serif;
+            font-size: 8px;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .evaluation-table th:nth-child(1) { width: 64px; }
+        .evaluation-table th:nth-child(3) { width: 48px; }
+        .evaluation-table th:nth-child(4) { width: 86px; }
     </style>
 </head>
 <body>

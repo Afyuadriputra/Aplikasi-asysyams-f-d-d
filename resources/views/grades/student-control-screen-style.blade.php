@@ -165,4 +165,45 @@
         margin: 4px 0 0 18px;
         padding: 0;
     }
+
+    .summary-section {
+        margin-top: 14px;
+    }
+
+    .summary-title {
+        font-family: Arial, sans-serif;
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0;
+        margin-bottom: 5px;
+        text-transform: uppercase;
+    }
+
+    .summary-table {
+        border-collapse: collapse;
+        table-layout: fixed;
+        width: 100%;
+    }
+
+    .summary-table th,
+    .summary-table td {
+        border: 1px solid #111111;
+        font-size: 12px;
+        line-height: 1.25;
+        padding: 5px 6px;
+        vertical-align: top;
+        word-break: break-word;
+    }
+
+    .summary-table th {
+        background: #f3f4f6;
+        font-family: Arial, sans-serif;
+        font-size: 11px;
+        font-weight: 700;
+        text-align: center;
+    }
+
+    .evaluation-table th:nth-child(1) { width: 86px; }
+    .evaluation-table th:nth-child(3) { width: 74px; }
+    .evaluation-table th:nth-child(4) { width: 120px; }
 </style>

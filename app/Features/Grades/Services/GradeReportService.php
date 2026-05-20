@@ -4,7 +4,9 @@ namespace App\Features\Grades\Services;
 
 use App\Features\Academic\Models\ClassGroup;
 use App\Features\Grades\Models\Assessment;
+use App\Features\Grades\Models\Evaluation;
 use App\Features\Grades\Models\Grade;
+use App\Features\Meetings\Models\Attendance;
 use App\Features\SiteSettings\Models\SiteSetting;
 use App\Models\User;
 use Illuminate\Support\Collection;
@@ -30,6 +32,8 @@ class GradeReportService
                 'email' => $this->setting('contact_email'),
             ],
             'rows' => $rows,
+            'evaluationSummary' => $this->buildEvaluationSummary($student, $classGroup),
+            'attendanceSummary' => $this->buildAttendanceSummary($student, $classGroup),
             'generatedAt' => now(),
         ];
     }
@@ -119,6 +123,59 @@ class GradeReportService
             });
     }
 
+    private function buildEvaluationSummary(User $student, ?ClassGroup $classGroup): Collection
+    {
+        return Evaluation::query()
+            ->where('user_id', $student->id)
+            ->when($classGroup, fn ($query) => $query->where('class_group_id', $classGroup->id))
+            ->orderBy('evaluation_number')
+            ->orderBy('id')
+            ->get()
+            ->flatMap(function (Evaluation $evaluation): array {
+                $items = is_array($evaluation->items) ? $evaluation->items : [];
+
+                if ($items === []) {
+                    return [[
+                        'evaluation_number' => $evaluation->evaluation_number,
+                        'item' => '-',
+                        'score' => '-',
+                        'status' => '-',
+                    ]];
+                }
+
+                return collect($items)
+                    ->map(fn (array $item): array => [
+                        'evaluation_number' => $evaluation->evaluation_number,
+                        'item' => (string) ($item['name'] ?? $item['catatan'] ?? '-'),
+                        'score' => $this->formatScore($item['score'] ?? null),
+                        'status' => $this->evaluationStatus($item),
+                    ])
+                    ->all();
+            })
+            ->values();
+    }
+
+    private function buildAttendanceSummary(User $student, ?ClassGroup $classGroup): array
+    {
+        $query = Attendance::query()
+            ->where('user_id', $student->id)
+            ->when($classGroup, fn ($query) => $query->whereHas('meeting', fn ($meetingQuery) => $meetingQuery->where('class_group_id', $classGroup->id)));
+
+        $summary = [
+            'present' => (clone $query)->where('status', 'present')->count(),
+            'sick' => (clone $query)->where('status', 'sick')->count(),
+            'permission' => (clone $query)->where('status', 'permission')->count(),
+            'alpha' => (clone $query)->where('status', 'alpha')->count(),
+        ];
+
+        $summary['total'] = array_sum($summary);
+        $summary['percentage'] = $summary['total'] > 0
+            ? round(($summary['present'] / $summary['total']) * 100)
+            : 0;
+
+        return $summary;
+    }
+
     private function assessmentItems(Assessment $assessment): array
     {
         $data = $assessment->data ?? [];
@@ -183,6 +240,32 @@ class GradeReportService
         }
 
         return '';
+    }
+
+    private function formatScore(mixed $score): string
+    {
+        if ($score === null || $score === '') {
+            return '-';
+        }
+
+        return is_numeric($score)
+            ? rtrim(rtrim(number_format((float) $score, 2, '.', ''), '0'), '.')
+            : (string) $score;
+    }
+
+    private function evaluationStatus(array $item): string
+    {
+        if (array_key_exists('checked', $item)) {
+            return $item['checked'] ? 'Tercapai' : 'Belum Tercapai';
+        }
+
+        $score = $item['score'] ?? null;
+
+        if (is_numeric($score)) {
+            return (float) $score >= 75 ? 'Baik' : 'Perlu Bimbingan';
+        }
+
+        return '-';
     }
 
     private function mergeCell(string $current, string $value): string

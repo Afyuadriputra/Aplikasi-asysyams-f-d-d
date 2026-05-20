@@ -6,7 +6,9 @@ use App\Features\Academic\Models\ClassGroup;
 use App\Features\Academic\Models\Semester;
 use App\Features\Academic\Models\Subject;
 use App\Features\Grades\Models\Assessment;
+use App\Features\Grades\Models\Evaluation;
 use App\Features\Grades\Models\Grade;
+use App\Features\Meetings\Models\Meeting;
 use App\Features\Permissions\Models\RolePermission;
 use App\Models\User;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -41,6 +43,9 @@ class StudentGradeControlReportTest extends TestCase
         $response->assertSee($student->name);
         $response->assertSee('ZIYADAH');
         $response->assertSee('Al-Fatihah : 1-7');
+        $response->assertSeeInOrder(['EVALUASI', 'REKAP ABSENSI']);
+        $response->assertSee('Kelancaran bacaan');
+        $response->assertSee('Persentase');
     }
 
     public function test_guru_can_download_pdf_for_student_in_their_class(): void
@@ -168,6 +173,29 @@ class StudentGradeControlReportTest extends TestCase
                 'data' => [
                     ['surah' => 'Al-Fatihah', 'ayat' => '1-7', 'nilai' => 'L'],
                 ],
+            ]);
+        }
+
+        Evaluation::create([
+            'user_id' => $student->id,
+            'class_group_id' => $classGroup->id,
+            'evaluation_number' => 1,
+            'items' => [
+                ['name' => 'Kelancaran bacaan', 'checked' => true, 'score' => 88],
+            ],
+        ]);
+
+        $meeting = Meeting::create([
+            'class_group_id' => $classGroup->id,
+            'user_id' => $teacher->id,
+            'title' => 'Pertemuan ' . $suffix,
+            'date' => now(),
+        ]);
+
+        foreach (['present', 'sick', 'permission', 'alpha'] as $status) {
+            $meeting->attendances()->create([
+                'user_id' => $student->id,
+                'status' => $status,
             ]);
         }
 

@@ -125,4 +125,58 @@
             <li>Kolom Murojaah: Baik (B), Kurang (K).</li>
         </ol>
     </div>
+
+    <div class="summary-section">
+        <div class="summary-title">EVALUASI</div>
+        <table class="summary-table evaluation-table">
+            <thead>
+                <tr>
+                    <th>Evaluasi Ke</th>
+                    <th>Catatan/Item</th>
+                    <th>Nilai</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                @forelse ($evaluationSummary as $evaluation)
+                    <tr>
+                        <td class="text-center">{{ $evaluation['evaluation_number'] }}</td>
+                        <td>{{ $evaluation['item'] }}</td>
+                        <td class="text-center">{{ $evaluation['score'] }}</td>
+                        <td class="text-center">{{ $evaluation['status'] }}</td>
+                    </tr>
+                @empty
+                    <tr>
+                        <td colspan="4" class="empty-state">Belum ada data evaluasi.</td>
+                    </tr>
+                @endforelse
+            </tbody>
+        </table>
+    </div>
+
+    <div class="summary-section">
+        <div class="summary-title">REKAP ABSENSI</div>
+        <table class="summary-table attendance-table">
+            <thead>
+                <tr>
+                    <th>Hadir</th>
+                    <th>Sakit</th>
+                    <th>Izin</th>
+                    <th>Alpha</th>
+                    <th>Total</th>
+                    <th>Persentase</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td class="text-center">{{ $attendanceSummary['present'] }}</td>
+                    <td class="text-center">{{ $attendanceSummary['sick'] }}</td>
+                    <td class="text-center">{{ $attendanceSummary['permission'] }}</td>
+                    <td class="text-center">{{ $attendanceSummary['alpha'] }}</td>
+                    <td class="text-center">{{ $attendanceSummary['total'] }}</td>
+                    <td class="text-center">{{ $attendanceSummary['percentage'] }}%</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
 </div>
