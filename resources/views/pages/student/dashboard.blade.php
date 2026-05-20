@@ -25,7 +25,7 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-16">
             
             <!-- Quick Actions Grid -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
                 
                 <!-- Card 1: Shortcut ke Admin Panel -->
                 <a href="{{ url('/admin') }}" target="_blank" class="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition border-l-4 border-green-600 group">
@@ -53,7 +53,20 @@
                     </div>
                 </div>
 
-                <!-- Card 3: Logout -->
+                <!-- Card 3: Rekap Absensi -->
+                <div class="bg-white rounded-lg shadow-lg p-6 border-l-4 border-amber-500">
+                    <div class="flex items-center gap-4">
+                        <div class="p-3 bg-amber-100 text-amber-700 rounded-full">
+                            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-6h6v6m2 4H7a2 2 0 01-2-2V7a2 2 0 012-2h3l2-2 2 2h3a2 2 0 012 2v12a2 2 0 01-2 2z"></path></svg>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-bold text-gray-900">Absensi</h3>
+                            <p class="text-sm text-gray-500">{{ $attendanceSummary['total'] ?? 0 }} Data</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card 4: Logout -->
                 <div class="bg-white rounded-lg shadow-lg p-6 border-l-4 border-red-500 cursor-pointer" onclick="document.getElementById('logout-form').submit()">
                     <div class="flex items-center gap-4">
                         <div class="p-3 bg-red-100 text-red-600 rounded-full">
@@ -69,8 +82,96 @@
 
             </div>
 
-            <!-- JADWAL HARI INI & ABSENSI -->
+            <!-- JADWAL & ABSENSI -->
             <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+                <div class="px-6 py-4 bg-gray-50 border-b border-gray-200 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                    <div>
+                        <h2 class="text-lg font-bold text-gray-800">Jadwal & Absensi</h2>
+                        <p class="text-sm text-gray-500">Data otomatis dari input pertemuan dan absensi di admin panel.</p>
+                    </div>
+                    <a href="{{ url('/admin/meetings/create') }}" class="text-sm text-white bg-green-600 px-4 py-2 rounded-lg hover:bg-green-700 transition">
+                        + Buat Pertemuan Baru
+                    </a>
+                </div>
+
+                <div class="grid grid-cols-2 md:grid-cols-5 gap-px bg-gray-200 border-b border-gray-200">
+                    <div class="bg-white p-4 text-center">
+                        <div class="text-xs font-semibold text-gray-500 uppercase">Hadir</div>
+                        <div class="mt-1 text-2xl font-bold text-green-700">{{ $attendanceSummary['present'] ?? 0 }}</div>
+                    </div>
+                    <div class="bg-white p-4 text-center">
+                        <div class="text-xs font-semibold text-gray-500 uppercase">Sakit</div>
+                        <div class="mt-1 text-2xl font-bold text-yellow-700">{{ $attendanceSummary['sick'] ?? 0 }}</div>
+                    </div>
+                    <div class="bg-white p-4 text-center">
+                        <div class="text-xs font-semibold text-gray-500 uppercase">Izin</div>
+                        <div class="mt-1 text-2xl font-bold text-blue-700">{{ $attendanceSummary['permission'] ?? 0 }}</div>
+                    </div>
+                    <div class="bg-white p-4 text-center">
+                        <div class="text-xs font-semibold text-gray-500 uppercase">Alpha</div>
+                        <div class="mt-1 text-2xl font-bold text-red-700">{{ $attendanceSummary['alpha'] ?? 0 }}</div>
+                    </div>
+                    <div class="bg-white p-4 text-center col-span-2 md:col-span-1">
+                        <div class="text-xs font-semibold text-gray-500 uppercase">Hari Ini</div>
+                        <div class="mt-1 text-2xl font-bold text-gray-900">{{ isset($todayClasses) ? $todayClasses->count() : 0 }}</div>
+                    </div>
+                </div>
+
+                @if(isset($scheduleMeetings) && $scheduleMeetings->count() > 0)
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Tanggal</th>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Kelas</th>
+                                    <th class="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">Materi</th>
+                                    <th class="px-6 py-3 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">H</th>
+                                    <th class="px-6 py-3 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">S</th>
+                                    <th class="px-6 py-3 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">I</th>
+                                    <th class="px-6 py-3 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">A</th>
+                                    <th class="px-6 py-3 text-right text-xs font-bold text-gray-600 uppercase tracking-wider">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-100">
+                                @foreach($scheduleMeetings as $meeting)
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
+                                            {{ $meeting->date?->format('d M Y') ?? '-' }}
+                                        </td>
+                                        <td class="px-6 py-4 text-sm text-gray-700">
+                                            <div class="font-semibold text-green-700">{{ $meeting->classGroup?->name ?? '-' }}</div>
+                                            <div class="text-xs text-gray-500">{{ $meeting->classGroup?->subject?->name ?? '-' }} / {{ $meeting->classGroup?->semester?->name ?? '-' }}</div>
+                                        </td>
+                                        <td class="px-6 py-4 text-sm text-gray-700">{{ $meeting->title }}</td>
+                                        <td class="px-6 py-4 text-center text-sm font-bold text-green-700">{{ $meeting->present_count }}</td>
+                                        <td class="px-6 py-4 text-center text-sm font-bold text-yellow-700">{{ $meeting->sick_count }}</td>
+                                        <td class="px-6 py-4 text-center text-sm font-bold text-blue-700">{{ $meeting->permission_count }}</td>
+                                        <td class="px-6 py-4 text-center text-sm font-bold text-red-700">{{ $meeting->alpha_count }}</td>
+                                        <td class="px-6 py-4 text-right">
+                                            <a href="{{ url('/admin/meetings/'.$meeting->id.'/edit') }}"
+                                               target="_blank"
+                                               class="inline-flex items-center px-3 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition">
+                                                Isi Absensi
+                                            </a>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                @else
+                    <div class="p-10 text-center">
+                        <div class="inline-block p-4 rounded-full bg-gray-100 text-gray-400 mb-3">
+                            <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                        </div>
+                        <h3 class="text-lg font-medium text-gray-900">Belum ada jadwal mendatang</h3>
+                        <p class="text-gray-500">Buat pertemuan di admin panel agar jadwal dan absensi tampil otomatis di sini.</p>
+                    </div>
+                @endif
+            </div>
+
+            <!-- JADWAL HARI INI & ABSENSI LAMA -->
+            <div class="hidden">
                 <div class="px-6 py-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center">
                     <h2 class="text-lg font-bold text-gray-800">📅 Jadwal Mengajar Hari Ini ({{ date('d M Y') }})</h2>
                     <a href="{{ url('/admin/meetings/create') }}" class="text-sm text-white bg-green-600 px-4 py-2 rounded-lg hover:bg-green-700 transition">

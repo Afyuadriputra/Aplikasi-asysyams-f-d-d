@@ -129,15 +129,69 @@ class StudentDashboardTest extends TestCase
     public function test_guru_sees_teacher_dashboard_view_data()
     {
         $guru = User::factory()->create(['role' => 'guru', 'is_active' => true]);
+        $otherGuru = User::factory()->create(['role' => 'guru', 'is_active' => true]);
+        $student = User::factory()->create(['role' => 'student', 'is_active' => true]);
+        $otherStudent = User::factory()->create(['role' => 'student', 'is_active' => true]);
+
+        $semester = Semester::create([
+            'name' => 'Ganjil Guru',
+            'year' => '2026/2027',
+            'start_date' => now()->startOfYear(),
+            'end_date' => now()->endOfYear(),
+            'is_active' => true,
+        ]);
+
+        $subject = Subject::create(['name' => 'Tahsin Dashboard', 'slug' => 'tahsin-dashboard']);
+        $otherSubject = Subject::create(['name' => 'Tahfidz Dashboard', 'slug' => 'tahfidz-dashboard']);
+        $classGroup = ClassGroup::create([
+            'name' => 'Tahsin Dashboard A',
+            'slug' => 'tahsin-dashboard-a',
+            'teacher_id' => $guru->id,
+            'subject_id' => $otherSubject->id,
+            'semester_id' => $semester->id,
+        ]);
+        $otherClassGroup = ClassGroup::create([
+            'name' => 'Kelas Guru Lain',
+            'slug' => 'kelas-guru-lain',
+            'teacher_id' => $otherGuru->id,
+            'subject_id' => $subject->id,
+            'semester_id' => $semester->id,
+        ]);
+
+        $meeting = Meeting::create([
+            'class_group_id' => $classGroup->id,
+            'user_id' => $guru->id,
+            'title' => 'Latihan Mad Dashboard',
+            'date' => now(),
+        ]);
+        $otherMeeting = Meeting::create([
+            'class_group_id' => $otherClassGroup->id,
+            'user_id' => $otherGuru->id,
+            'title' => 'Jadwal Guru Lain',
+            'date' => now(),
+        ]);
+
+        Attendance::create(['meeting_id' => $meeting->id, 'user_id' => $student->id, 'status' => 'present']);
+        Attendance::create(['meeting_id' => $meeting->id, 'user_id' => $otherStudent->id, 'status' => 'sick']);
+        Attendance::create(['meeting_id' => $otherMeeting->id, 'user_id' => $student->id, 'status' => 'alpha']);
         
         $this->actingAs($guru);
         $response = $this->get('/dashboard');
 
         $response->assertStatus(200);
-        // Teacher dashboard has 'totalMeetings'
         $response->assertViewHas('totalMeetings');
         $response->assertViewHas('todayClasses');
-        // It shouldn't have 'presentCount' (that's for students)
+        $response->assertViewHas('scheduleMeetings');
+        $response->assertViewHas('attendanceSummary', [
+            'present' => 1,
+            'sick' => 1,
+            'permission' => 0,
+            'alpha' => 0,
+            'total' => 2,
+        ]);
+        $response->assertSee('Jadwal & Absensi', false);
+        $response->assertSee('Latihan Mad Dashboard');
+        $response->assertDontSee('Jadwal Guru Lain');
         $response->assertViewMissing('presentCount');
     }
 }

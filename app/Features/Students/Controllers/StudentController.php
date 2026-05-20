@@ -6,8 +6,7 @@ use App\Features\Meetings\Models\Attendance;
 use App\Features\Grades\Models\Grade;
 use App\Features\Payments\Models\Payment;
 use App\Features\Academic\Models\Semester;
-use App\Features\Meetings\Models\Meeting;
-use Illuminate\Http\Request;
+use App\Features\Students\Services\StudentService;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\Controller;
 
@@ -17,23 +16,16 @@ class StudentController extends Controller
      * Halaman Utama Dashboard Santri
      * Menampilkan Status SPP & Ringkasan
      */
-    public function dashboard()
+    public function dashboard(StudentService $studentService)
     {
         $user = Auth::user();
 
         // --- LOGIC KHUSUS GURU ---
         if ($user->role === 'guru' || $user->role === 'superadmin') {
-            // Ambil data ringkasan untuk Ustad
-            $totalMeetings = Meeting::where('user_id', $user->id)->count();
-            
-            // Jadwal Hari Ini
-            $todayClasses = Meeting::with('classGroup.subject')
-                ->where('user_id', $user->id)
-                ->whereDate('date', now())
-                ->get();
-
-            // Return view yang sama, tapi datanya beda
-            return view('pages.student.dashboard', compact('user', 'totalMeetings', 'todayClasses'));
+            return view('pages.student.dashboard', [
+                'user' => $user,
+                ...$studentService->teacherDashboardData($user),
+            ]);
         }
 
         // --- LOGIC KHUSUS SISWA (KODE LAMA) ---
