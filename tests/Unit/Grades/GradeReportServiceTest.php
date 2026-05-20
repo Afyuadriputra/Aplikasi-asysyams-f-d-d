@@ -99,6 +99,8 @@ class GradeReportServiceTest extends TestCase
             'user_id' => $student->id,
             'class_group_id' => $classGroup->id,
             'evaluation_number' => 1,
+            'surah_name' => 'Al-Fatihah',
+            'song_name' => 'Bayati',
             'items' => [
                 ['name' => 'Kelancaran bacaan', 'checked' => true, 'score' => 88],
                 ['name' => 'Ketepatan tajwid', 'checked' => false, 'score' => 70],
@@ -107,9 +109,13 @@ class GradeReportServiceTest extends TestCase
 
         $report = app(GradeReportService::class)->buildStudentControlReport($student, $grade);
 
+        $this->assertSame('Al-Fatihah', $report['evaluationSummary'][0]['surah_name']);
+        $this->assertSame('Bayati', $report['evaluationSummary'][0]['song_name']);
         $this->assertSame('Kelancaran bacaan', $report['evaluationSummary'][0]['item']);
         $this->assertSame('88', $report['evaluationSummary'][0]['score']);
         $this->assertSame('Tercapai', $report['evaluationSummary'][0]['status']);
+        $this->assertSame('Al-Fatihah', $report['evaluationSummary'][1]['surah_name']);
+        $this->assertSame('Bayati', $report['evaluationSummary'][1]['song_name']);
         $this->assertSame('Belum Tercapai', $report['evaluationSummary'][1]['status']);
         $this->assertSame(2, $report['attendanceSummary']['present']);
         $this->assertSame(1, $report['attendanceSummary']['sick']);
@@ -117,6 +123,26 @@ class GradeReportServiceTest extends TestCase
         $this->assertSame(1, $report['attendanceSummary']['alpha']);
         $this->assertSame(5, $report['attendanceSummary']['total']);
         $this->assertSame(40.0, $report['attendanceSummary']['percentage']);
+    }
+
+    public function test_build_student_control_report_handles_legacy_evaluation_without_surah_or_song(): void
+    {
+        [$student, $classGroup, $grade] = $this->makeAcademicData();
+
+        Evaluation::create([
+            'user_id' => $student->id,
+            'class_group_id' => $classGroup->id,
+            'evaluation_number' => 2,
+            'items' => [
+                ['name' => 'Adab membaca', 'checked' => true],
+            ],
+        ]);
+
+        $report = app(GradeReportService::class)->buildStudentControlReport($student, $grade);
+
+        $this->assertSame('-', $report['evaluationSummary'][0]['surah_name']);
+        $this->assertSame('-', $report['evaluationSummary'][0]['song_name']);
+        $this->assertSame('Adab membaca', $report['evaluationSummary'][0]['item']);
     }
 
     public function test_superadmin_can_access_any_student_report_and_student_cannot(): void

@@ -156,6 +156,8 @@
             <thead>
                 <tr>
                     <th>Evaluasi Ke</th>
+                    <th>Surah</th>
+                    <th>Lagu</th>
                     <th>Catatan/Item</th>
                     <th>Nilai</th>
                     <th>Status</th>
@@ -165,13 +167,15 @@
                 @forelse ($evaluationSummary as $evaluation)
                     <tr>
                         <td class="text-center">{{ $evaluation['evaluation_number'] }}</td>
+                        <td>{{ $evaluation['surah_name'] ?? '-' }}</td>
+                        <td>{{ $evaluation['song_name'] ?? '-' }}</td>
                         <td>{{ $evaluation['item'] }}</td>
                         <td class="text-center">{{ $evaluation['score'] }}</td>
                         <td class="text-center">{{ $evaluation['status'] }}</td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="4" class="empty-state">Belum ada data evaluasi.</td>
+                        <td colspan="6" class="empty-state">Belum ada data evaluasi.</td>
                     </tr>
                 @endforelse
             </tbody>

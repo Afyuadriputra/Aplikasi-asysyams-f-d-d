@@ -220,7 +220,7 @@ class MockupDataSeeder extends Seeder
                     );
                 }
 
-                foreach ($this->evaluationItems() as $evaluationNumber => $items) {
+                foreach ($this->evaluationRows() as $evaluationNumber => $evaluation) {
                     Evaluation::updateOrCreate(
                         [
                             'class_group_id' => $classGroup->id,
@@ -228,7 +228,9 @@ class MockupDataSeeder extends Seeder
                             'evaluation_number' => $evaluationNumber,
                         ],
                         [
-                            'items' => $items,
+                            'surah_name' => $evaluation['surah_name'],
+                            'song_name' => $evaluation['song_name'],
+                            'items' => $evaluation['items'],
                         ],
                     );
                 }
@@ -374,18 +376,26 @@ class MockupDataSeeder extends Seeder
         };
     }
 
-    private function evaluationItems(): array
+    private function evaluationRows(): array
     {
         return [
             1 => [
-                ['name' => 'Kelancaran bacaan', 'checked' => true, 'score' => 88],
-                ['name' => 'Ketepatan tajwid', 'checked' => true, 'score' => 84],
-                ['name' => 'Adab saat setoran', 'checked' => true, 'score' => 92],
+                'surah_name' => 'Al-Fatihah',
+                'song_name' => 'Bayati',
+                'items' => [
+                    ['name' => 'Kelancaran bacaan', 'checked' => true, 'score' => 88],
+                    ['name' => 'Ketepatan tajwid', 'checked' => true, 'score' => 84],
+                    ['name' => 'Adab saat setoran', 'checked' => true, 'score' => 92],
+                ],
             ],
             2 => [
-                ['name' => 'Konsistensi murojaah', 'checked' => true, 'score' => 82],
-                ['name' => 'Kerapian hafalan baru', 'checked' => false, 'score' => 74],
-                ['name' => 'Kepercayaan diri membaca', 'checked' => true, 'score' => 86],
+                'surah_name' => 'An-Naba',
+                'song_name' => 'Hijaz',
+                'items' => [
+                    ['name' => 'Konsistensi murojaah', 'checked' => true, 'score' => 82],
+                    ['name' => 'Kerapian hafalan baru', 'checked' => false, 'score' => 74],
+                    ['name' => 'Kepercayaan diri membaca', 'checked' => true, 'score' => 86],
+                ],
             ],
         ];
     }

@@ -95,6 +95,20 @@
       0 => 'Kirschbaum\\PowerJoins\\PowerJoinsServiceProvider',
     ),
   ),
+  'laramint/laravel-brain' => 
+  array (
+    'providers' => 
+    array (
+      0 => 'LaraMint\\LaravelBrain\\LaravelBrainServiceProvider',
+    ),
+  ),
+  'laramint/laravel-stress' => 
+  array (
+    'providers' => 
+    array (
+      0 => 'LaraMint\\LaravelStress\\LaravelStressServiceProvider',
+    ),
+  ),
   'laravel/breeze' => 
   array (
     'providers' => 

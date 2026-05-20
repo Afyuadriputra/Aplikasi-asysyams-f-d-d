@@ -15,6 +15,9 @@ use App\Features\Payments\Models\Payment;
 use App\Features\Posts\Models\Post;
 use App\Features\SiteSettings\Models\SiteSetting;
 use App\Features\TeacherAttendances\Models\TeacherAttendance;
+use App\Filament\Resources\EvaluationResource\Pages\CreateEvaluation;
+use App\Filament\Resources\EvaluationResource\Pages\EditEvaluation;
+use Livewire\Livewire;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -102,6 +105,102 @@ class FilamentResourceTest extends TestCase
         $this->assertSame(ClassGroup::class, \App\Filament\Resources\ReportResource::getModel());
     }
 
+    public function test_evaluation_can_be_created_with_surah_and_song_names(): void
+    {
+        [$admin, $student, $classGroup] = $this->makeEvaluationFormData();
+
+        $this->actingAs($admin);
+
+        $component = Livewire::test(CreateEvaluation::class)
+            ->fillForm([
+                'class_group_id' => $classGroup->id,
+                'user_ids' => [$student->id],
+                'evaluation_number' => 1,
+                'surah_name' => 'Al-Fatihah',
+                'song_name' => 'Bayati',
+            ]);
+
+        $itemKey = array_key_first($component->get('data.items'));
+
+        $component
+            ->set("data.items.{$itemKey}.name", 'Kelancaran bacaan')
+            ->set("data.items.{$itemKey}.checked", true)
+            ->set("data.items.{$itemKey}.score", 88)
+            ->call('create')
+            ->assertHasNoFormErrors();
+
+        $this->assertDatabaseHas('evaluations', [
+            'class_group_id' => $classGroup->id,
+            'user_id' => $student->id,
+            'evaluation_number' => 1,
+            'surah_name' => 'Al-Fatihah',
+            'song_name' => 'Bayati',
+        ]);
+    }
+
+    public function test_evaluation_can_be_edited_with_surah_and_song_names(): void
+    {
+        [$admin, $student, $classGroup] = $this->makeEvaluationFormData();
+        $evaluation = Evaluation::create([
+            'class_group_id' => $classGroup->id,
+            'user_id' => $student->id,
+            'evaluation_number' => 1,
+            'surah_name' => 'Al-Fatihah',
+            'song_name' => 'Bayati',
+            'items' => [
+                ['name' => 'Kelancaran bacaan', 'checked' => true, 'score' => 88],
+            ],
+        ]);
+
+        $this->actingAs($admin);
+
+        Livewire::test(EditEvaluation::class, ['record' => $evaluation->getRouteKey()])
+            ->fillForm([
+                'class_group_id' => $classGroup->id,
+                'user_id' => $student->id,
+                'evaluation_number' => 1,
+                'surah_name' => 'An-Naba',
+                'song_name' => 'Hijaz',
+                'items' => [
+                    [
+                        'name' => 'Ketepatan tajwid',
+                        'checked' => true,
+                        'score' => 91,
+                    ],
+                ],
+            ])
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        $this->assertDatabaseHas('evaluations', [
+            'id' => $evaluation->id,
+            'surah_name' => 'An-Naba',
+            'song_name' => 'Hijaz',
+        ]);
+    }
+
+    public function test_evaluation_table_shows_surah_and_song_names(): void
+    {
+        [$admin, $student, $classGroup] = $this->makeEvaluationFormData();
+        Evaluation::create([
+            'class_group_id' => $classGroup->id,
+            'user_id' => $student->id,
+            'evaluation_number' => 1,
+            'surah_name' => 'Al-Fatihah',
+            'song_name' => 'Bayati',
+            'items' => [
+                ['name' => 'Kelancaran bacaan', 'checked' => true, 'score' => 88],
+            ],
+        ]);
+
+        $this
+            ->actingAs($admin)
+            ->get('admin/evaluations')
+            ->assertOk()
+            ->assertSee('Al-Fatihah')
+            ->assertSee('Bayati');
+    }
+
     public function test_resource_actions_follow_permissions()
     {
         $guru = User::factory()->create(['role' => 'guru', 'is_active' => true]);
@@ -143,5 +242,26 @@ class FilamentResourceTest extends TestCase
     {
         $response = $this->get('admin');
         $response->assertRedirect('admin/login');
+    }
+
+    private function makeEvaluationFormData(): array
+    {
+        $admin = User::factory()->create(['role' => 'superadmin', 'is_active' => true]);
+        $teacher = User::factory()->create(['role' => 'guru', 'is_active' => true]);
+        $student = User::factory()->create(['role' => 'student', 'is_active' => true]);
+        $subject = Subject::create(['name' => 'Tahsin', 'slug' => 'tahsin']);
+        $semester = Semester::first();
+        $classGroup = ClassGroup::create([
+            'name' => 'Tahsin A',
+            'slug' => 'tahsin-a',
+            'teacher_id' => $teacher->id,
+            'subject_id' => $subject->id,
+            'semester_id' => $semester->id,
+            'is_active' => true,
+        ]);
+
+        $classGroup->students()->attach($student->id, ['joined_at' => now()]);
+
+        return [$admin, $student, $classGroup];
     }
 }

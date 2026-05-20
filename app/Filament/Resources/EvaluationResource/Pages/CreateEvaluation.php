@@ -27,6 +27,8 @@ class CreateEvaluation extends CreateRecord
                 'class_group_id' => $data['class_group_id'],
                 'user_id' => $userId,
                 'evaluation_number' => $data['evaluation_number'],
+                'surah_name' => $data['surah_name'] ?? null,
+                'song_name' => $data['song_name'] ?? null,
                 'items' => $data['items'] ?? [],
             ]);
 

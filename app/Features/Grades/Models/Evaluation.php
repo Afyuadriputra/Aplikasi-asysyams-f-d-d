@@ -14,6 +14,8 @@ class Evaluation extends Model
         'user_id',
         'class_group_id',
         'evaluation_number',
+        'surah_name',
+        'song_name',
         'items',
     ];
 

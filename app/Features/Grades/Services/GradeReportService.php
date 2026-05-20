@@ -61,14 +61,13 @@ class GradeReportService
     private function resolveClassGroup(User $student, ?Grade $grade = null): ?ClassGroup
     {
         if ($grade) {
-            $matchedClass = $student->classGroups
-                ->first(fn (ClassGroup $classGroup): bool =>
+            foreach ($student->classGroups as $classGroup) {
+                if (
                     (int) $classGroup->subject_id === (int) $grade->subject_id
                     && (int) $classGroup->semester_id === (int) $grade->semester_id
-                );
-
-            if ($matchedClass) {
-                return $matchedClass;
+                ) {
+                    return $classGroup;
+                }
             }
         }
 
@@ -150,6 +149,8 @@ class GradeReportService
                 if ($items === []) {
                     return [[
                         'evaluation_number' => $evaluation->evaluation_number,
+                        'surah_name' => $evaluation->surah_name ?: '-',
+                        'song_name' => $evaluation->song_name ?: '-',
                         'item' => '-',
                         'score' => '-',
                         'status' => '-',
@@ -159,6 +160,8 @@ class GradeReportService
                 return collect($items)
                     ->map(fn (array $item): array => [
                         'evaluation_number' => $evaluation->evaluation_number,
+                        'surah_name' => $evaluation->surah_name ?: '-',
+                        'song_name' => $evaluation->song_name ?: '-',
                         'item' => (string) ($item['name'] ?? $item['catatan'] ?? '-'),
                         'score' => $this->formatScore($item['score'] ?? null),
                         'status' => $this->evaluationStatus($item),

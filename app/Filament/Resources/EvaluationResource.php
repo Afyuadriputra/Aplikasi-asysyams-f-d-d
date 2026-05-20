@@ -84,6 +84,16 @@ class EvaluationResource extends Resource
                             4 => 'Evaluasi 4',
                         ])
                         ->required(),
+
+                    Forms\Components\TextInput::make('surah_name')
+                        ->label('Nama Surah')
+                        ->maxLength(255)
+                        ->nullable(),
+
+                    Forms\Components\TextInput::make('song_name')
+                        ->label('Nama Lagu')
+                        ->maxLength(255)
+                        ->nullable(),
                 ])->columns(3),
 
                 // Repeater untuk Item Evaluasi
@@ -136,6 +146,20 @@ class EvaluationResource extends Resource
                     ->label('Evaluasi Ke-')
                     ->badge()
                     ->color('warning'),
+
+                Tables\Columns\TextColumn::make('surah_name')
+                    ->label('Surah')
+                    ->searchable()
+                    ->limit(24)
+                    ->placeholder('-')
+                    ->toggleable(),
+
+                Tables\Columns\TextColumn::make('song_name')
+                    ->label('Lagu')
+                    ->searchable()
+                    ->limit(24)
+                    ->placeholder('-')
+                    ->toggleable(),
 
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()

@@ -222,9 +222,11 @@
             text-align: center;
         }
 
-        .evaluation-table th:nth-child(1) { width: 64px; }
-        .evaluation-table th:nth-child(3) { width: 48px; }
-        .evaluation-table th:nth-child(4) { width: 86px; }
+        .evaluation-table th:nth-child(1) { width: 54px; }
+        .evaluation-table th:nth-child(2) { width: 86px; }
+        .evaluation-table th:nth-child(3) { width: 72px; }
+        .evaluation-table th:nth-child(5) { width: 42px; }
+        .evaluation-table th:nth-child(6) { width: 76px; }
 
         .note-table th:nth-child(1) { width: 64px; }
     </style>
