@@ -4,11 +4,13 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\GradeResource\Pages;
 use App\Features\Grades\Models\Grade;
+use App\Features\Grades\Services\GradeReportService;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Support\Facades\Auth;
 
 class GradeResource extends Resource
 {
@@ -85,6 +87,27 @@ class GradeResource extends Resource
                     ->sortable(),
             ])
             ->actions([
+                Tables\Actions\Action::make('lihat_tabel_santri')
+                    ->label('Lihat Tabel Santri')
+                    ->icon('heroicon-o-table-cells')
+                    ->modalHeading(fn (Grade $record): string => 'Tabel Nilai ' . $record->student?->name)
+                    ->modalWidth('7xl')
+                    ->modalSubmitAction(false)
+                    ->modalCancelActionLabel('Tutup')
+                    ->visible(fn (Grade $record): bool => static::canAccessStudentControl($record))
+                    ->modalContent(fn (Grade $record) => view('grades.student-control-modal', app(GradeReportService::class)->buildStudentControlReport($record->student, $record))),
+
+                Tables\Actions\Action::make('download_pdf')
+                    ->label('Download PDF')
+                    ->icon('heroicon-o-arrow-down-tray')
+                    ->color('success')
+                    ->visible(fn (Grade $record): bool => static::canAccessStudentControl($record))
+                    ->url(fn (Grade $record): string => route('admin.grades.student-control.pdf', [
+                        'user' => $record->user_id,
+                        'grade' => $record->id,
+                    ]))
+                    ->openUrlInNewTab(),
+
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),
             ])
@@ -102,5 +125,16 @@ class GradeResource extends Resource
             'create' => Pages\CreateGrade::route('/create'),
             'edit' => Pages\EditGrade::route('/{record}/edit'),
         ];
+    }
+
+    private static function canAccessStudentControl(Grade $record): bool
+    {
+        $user = Auth::user();
+
+        if (! $user || ! $record->student) {
+            return false;
+        }
+
+        return app(GradeReportService::class)->canAccessStudentReport($user, $record->student, $record);
     }
 }

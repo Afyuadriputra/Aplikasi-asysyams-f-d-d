@@ -1,6 +1,7 @@
 <?php
 
 use App\Features\Payments\Controllers\PaymentController;
+use App\Features\Grades\Controllers\GradeReportController;
 use App\Features\Posts\Controllers\PostController;
 use App\Http\Controllers\ProfileController;
 use App\Features\Students\Controllers\StudentController;
@@ -106,6 +107,14 @@ Route::middleware(['auth', 'verified', 'is_active'])->group(function () {
         ->name('payment.checkout');
 
     Route::get('/payment/success', [PaymentController::class, 'success'])->name('payment.success');
+
+    Route::get('/admin/grades/student/{user}/control', [GradeReportController::class, 'show'])
+        ->middleware(EnsureUserHasPermission::class . ':grades.view|grades.manage')
+        ->name('admin.grades.student-control');
+
+    Route::get('/admin/grades/student/{user}/pdf', [GradeReportController::class, 'pdf'])
+        ->middleware(EnsureUserHasPermission::class . ':grades.view|grades.manage')
+        ->name('admin.grades.student-control.pdf');
 
     // Profile Bawaan
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
