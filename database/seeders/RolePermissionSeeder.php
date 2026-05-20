@@ -18,6 +18,7 @@ class RolePermissionSeeder extends Seeder
                 'meetings.manage',
                 'attendances.view',
                 'attendances.manage',
+                'teacher-attendances.check-in',
                 'assessments.view',
                 'assessments.manage',
                 'evaluations.view',

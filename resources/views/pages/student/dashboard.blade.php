@@ -82,6 +82,157 @@
 
             </div>
 
+            @if(Auth::user()->role === 'guru')
+                @php
+                    $teacherStatusLabels = [
+                        'present' => 'Hadir',
+                        'late' => 'Terlambat',
+                        'permission' => 'Izin',
+                        'sick' => 'Sakit',
+                        'alpha' => 'Alpha',
+                    ];
+                    $teacherStatusColors = [
+                        'present' => 'bg-green-100 text-green-800',
+                        'late' => 'bg-yellow-100 text-yellow-800',
+                        'permission' => 'bg-blue-100 text-blue-800',
+                        'sick' => 'bg-gray-100 text-gray-800',
+                        'alpha' => 'bg-red-100 text-red-800',
+                    ];
+                    $teacherAttendanceStatus = $teacherAttendanceToday?->status;
+                @endphp
+
+                <div class="bg-white rounded-xl shadow-lg overflow-hidden mb-8">
+                    <div class="px-6 py-4 bg-gray-50 border-b border-gray-200">
+                        <h2 class="text-lg font-bold text-gray-800">Absensi Saya Hari Ini</h2>
+                        <p class="text-sm text-gray-500">Check-in dan check-out hanya untuk akun guru yang sedang login.</p>
+                    </div>
+
+                    @if(session('status'))
+                        <div class="mx-6 mt-4 rounded-lg bg-green-50 px-4 py-3 text-sm font-medium text-green-800">
+                            {{ session('status') }}
+                        </div>
+                    @endif
+
+                    @if($errors->has('attendance'))
+                        <div class="mx-6 mt-4 rounded-lg bg-red-50 px-4 py-3 text-sm font-medium text-red-800">
+                            {{ $errors->first('attendance') }}
+                        </div>
+                    @endif
+
+                    <div class="p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div class="lg:col-span-1 border border-gray-200 rounded-lg p-5">
+                            <div class="text-sm font-semibold text-gray-500 uppercase">Status Hari Ini</div>
+                            <div class="mt-3">
+                                @if($teacherAttendanceToday)
+                                    <span class="inline-flex rounded-full px-3 py-1 text-sm font-bold {{ $teacherStatusColors[$teacherAttendanceStatus] ?? 'bg-gray-100 text-gray-800' }}">
+                                        {{ $teacherStatusLabels[$teacherAttendanceStatus] ?? 'Belum Absen' }}
+                                    </span>
+                                @else
+                                    <span class="inline-flex rounded-full px-3 py-1 text-sm font-bold bg-gray-100 text-gray-800">
+                                        Belum Absen
+                                    </span>
+                                @endif
+                            </div>
+
+                            <div class="mt-4 text-sm text-gray-600 space-y-1">
+                                <div>Check In: <span class="font-semibold">{{ $teacherAttendanceToday?->check_in_at?->format('H:i') ?? '-' }}</span></div>
+                                <div>Check Out: <span class="font-semibold">{{ $teacherAttendanceToday?->check_out_at?->format('H:i') ?? '-' }}</span></div>
+                            </div>
+
+                            <div class="mt-5 flex flex-col sm:flex-row gap-3">
+                                @if(! $teacherAttendanceToday)
+                                    <form method="POST" action="{{ route('teacher-attendances.check-in') }}">
+                                        @csrf
+                                        <button type="submit" class="w-full sm:w-auto px-4 py-2 rounded-lg bg-green-700 text-white font-semibold hover:bg-green-800">
+                                            Check In
+                                        </button>
+                                    </form>
+                                @elseif($teacherAttendanceToday->check_in_at && ! $teacherAttendanceToday->check_out_at && ! in_array($teacherAttendanceToday->status, ['permission', 'sick', 'alpha'], true))
+                                    <form method="POST" action="{{ route('teacher-attendances.check-out') }}">
+                                        @csrf
+                                        <button type="submit" class="w-full sm:w-auto px-4 py-2 rounded-lg bg-blue-700 text-white font-semibold hover:bg-blue-800">
+                                            Check Out
+                                        </button>
+                                    </form>
+                                @else
+                                    <div class="text-sm font-semibold text-gray-600">Absensi hari ini selesai.</div>
+                                @endif
+                            </div>
+                        </div>
+
+                        <div class="lg:col-span-2 overflow-x-auto border border-gray-200 rounded-lg">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Tanggal</th>
+                                        <th class="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Status</th>
+                                        <th class="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Check In</th>
+                                        <th class="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Check Out</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-100">
+                                    @forelse($teacherAttendanceRecent as $attendance)
+                                        <tr>
+                                            <td class="px-4 py-3 text-sm text-gray-900">{{ $attendance->date?->format('d M Y') }}</td>
+                                            <td class="px-4 py-3 text-sm font-semibold">{{ $teacherStatusLabels[$attendance->status] ?? $attendance->status }}</td>
+                                            <td class="px-4 py-3 text-sm text-gray-700">{{ $attendance->check_in_at?->format('H:i') ?? '-' }}</td>
+                                            <td class="px-4 py-3 text-sm text-gray-700">{{ $attendance->check_out_at?->format('H:i') ?? '-' }}</td>
+                                        </tr>
+                                    @empty
+                                        <tr>
+                                            <td colspan="4" class="px-4 py-6 text-center text-sm text-gray-500">Belum ada riwayat absensi.</td>
+                                        </tr>
+                                    @endforelse
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            @endif
+
+            @if(Auth::user()->role === 'superadmin')
+                <div class="bg-white rounded-xl shadow-lg overflow-hidden mb-8">
+                    <div class="px-6 py-4 bg-gray-50 border-b border-gray-200">
+                        <h2 class="text-lg font-bold text-gray-800">Rekap Absensi Ustad Hari Ini</h2>
+                    </div>
+                    <div class="grid grid-cols-2 md:grid-cols-5 gap-px bg-gray-200">
+                        <div class="bg-white p-4 text-center"><div class="text-xs font-semibold text-gray-500 uppercase">Hadir</div><div class="mt-1 text-2xl font-bold text-green-700">{{ $teacherAttendanceSummary['present'] ?? 0 }}</div></div>
+                        <div class="bg-white p-4 text-center"><div class="text-xs font-semibold text-gray-500 uppercase">Terlambat</div><div class="mt-1 text-2xl font-bold text-yellow-700">{{ $teacherAttendanceSummary['late'] ?? 0 }}</div></div>
+                        <div class="bg-white p-4 text-center"><div class="text-xs font-semibold text-gray-500 uppercase">Izin/Sakit</div><div class="mt-1 text-2xl font-bold text-blue-700">{{ $teacherAttendanceSummary['permission_or_sick'] ?? 0 }}</div></div>
+                        <div class="bg-white p-4 text-center"><div class="text-xs font-semibold text-gray-500 uppercase">Alpha</div><div class="mt-1 text-2xl font-bold text-red-700">{{ $teacherAttendanceSummary['alpha'] ?? 0 }}</div></div>
+                        <div class="bg-white p-4 text-center col-span-2 md:col-span-1"><div class="text-xs font-semibold text-gray-500 uppercase">Belum Absen</div><div class="mt-1 text-2xl font-bold text-gray-900">{{ $teacherAttendanceSummary['not_checked_in'] ?? 0 }}</div></div>
+                    </div>
+                    <div class="overflow-x-auto border-t border-gray-200">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Nama Guru</th>
+                                    <th class="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Status</th>
+                                    <th class="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Check In</th>
+                                    <th class="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Check Out</th>
+                                    <th class="px-4 py-3 text-left text-xs font-bold text-gray-600 uppercase">Catatan</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-100">
+                                @forelse($teacherAttendanceTodayRows as $attendance)
+                                    <tr>
+                                        <td class="px-4 py-3 text-sm font-semibold text-gray-900">{{ $attendance->user?->name ?? '-' }}</td>
+                                        <td class="px-4 py-3 text-sm text-gray-700">{{ \App\Features\TeacherAttendances\Models\TeacherAttendance::STATUSES[$attendance->status] ?? $attendance->status }}</td>
+                                        <td class="px-4 py-3 text-sm text-gray-700">{{ $attendance->check_in_at?->format('H:i') ?? '-' }}</td>
+                                        <td class="px-4 py-3 text-sm text-gray-700">{{ $attendance->check_out_at?->format('H:i') ?? '-' }}</td>
+                                        <td class="px-4 py-3 text-sm text-gray-700">{{ $attendance->note ?: '-' }}</td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="5" class="px-4 py-6 text-center text-sm text-gray-500">Belum ada data absensi ustad hari ini.</td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            @endif
+
             <!-- JADWAL & ABSENSI -->
             <div class="bg-white rounded-xl shadow-lg overflow-hidden">
                 <div class="px-6 py-4 bg-gray-50 border-b border-gray-200 flex flex-col md:flex-row md:items-center md:justify-between gap-3">

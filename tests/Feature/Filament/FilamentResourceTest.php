@@ -14,6 +14,7 @@ use App\Features\Grades\Models\Grade;
 use App\Features\Payments\Models\Payment;
 use App\Features\Posts\Models\Post;
 use App\Features\SiteSettings\Models\SiteSetting;
+use App\Features\TeacherAttendances\Models\TeacherAttendance;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -44,6 +45,7 @@ class FilamentResourceTest extends TestCase
             'admin/posts',
             'admin/class-groups',
             'admin/meetings',
+            'admin/teacher-attendances',
             'admin/assessments',
             'admin/evaluations',
             'admin/grades',
@@ -88,6 +90,7 @@ class FilamentResourceTest extends TestCase
         $this->assertSame(Post::class, \App\Filament\Resources\PostResource::getModel());
         $this->assertSame(ClassGroup::class, \App\Filament\Resources\ClassGroupResource::getModel());
         $this->assertSame(Meeting::class, \App\Filament\Resources\MeetingResource::getModel());
+        $this->assertSame(TeacherAttendance::class, \App\Filament\Resources\TeacherAttendanceResource::getModel());
         $this->assertSame(Assessment::class, \App\Filament\Resources\AssessmentResource::getModel());
         $this->assertSame(Evaluation::class, \App\Filament\Resources\EvaluationResource::getModel());
         $this->assertSame(Grade::class, \App\Filament\Resources\GradeResource::getModel());

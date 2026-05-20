@@ -2,80 +2,181 @@
 
 ## Ringkasan
 
-Audit dilakukan pada project Laravel 12 + Filament 3.3 dengan arsitektur Feature-Driven MVC + Service Layer.
+Project memakai Laravel 12, Filament 3.3, PHPUnit 11, dan SQLite in-memory untuk test. Arsitektur yang diuji adalah Feature-Driven MVC + Service Layer.
 
-Baseline sebelum perubahan:
-- `php artisan route:list`: 78 routes.
-- `php artisan test`: 90 tests passed, 234 assertions.
-- `composer dump-autoload`: berhasil.
-- `php artisan optimize:clear`: gagal pada cache store database karena MySQL lokal `127.0.0.1:3307` tidak aktif.
+Status terbaru setelah penambahan fitur dan update dokumentasi:
+- Route aktif: 86 routes.
+- Test target Teacher Attendance: 11 passed.
+- Test target dashboard + teacher attendance: 15 passed.
+- Test target Filament + dashboard + teacher attendance: 21 passed.
+- Namespace regression: 4 passed.
+- Full test: 127 passed, 3416 assertions.
+- Coverage belum tersedia karena Xdebug/PCOV belum terpasang.
 
-Hasil akhir:
-- `php artisan route:list`: 78 routes.
-- `php artisan test`: 107 tests passed, 3076 assertions.
-- `CACHE_STORE=array php artisan optimize:clear`: berhasil.
-- `php artisan test --coverage`: tidak tersedia karena Xdebug/PCOV belum terpasang.
+## Command Yang Dijalankan
 
-## Kategori Test
+```bash
+php artisan migrate --force
+php artisan route:list
+php artisan route:list --path=teacher-attendances
+php artisan route:list --path=admin/site-settings
+php artisan test tests/Feature/TeacherAttendances/TeacherAttendanceTest.php
+php artisan test tests/Feature/TeacherAttendances/TeacherAttendanceTest.php tests/Feature/Students/StudentDashboardTest.php
+php artisan test tests/Feature/TeacherAttendances/TeacherAttendanceTest.php tests/Feature/Students/StudentDashboardTest.php tests/Feature/Filament/FilamentResourceTest.php
+php artisan test
+```
 
-Test yang tersedia dan diperkuat:
-- Architecture / namespace regression.
-- Auth, role, RBAC, dan permission middleware.
-- Filament resource render, namespace model, dan action permission.
-- Academic flow dan relasi class group.
-- Meetings dan attendance, termasuk status `present`, `sick`, `permission`, `alpha`.
-- GradeCalculationService.
-- Report PDF dengan mock DomPDF.
-- Payment dan Midtrans webhook dengan fake payload/signature.
-- Student dashboard dan isolasi data antar student.
-- Posts, contacts, site settings, dan SPMB deadline.
-- Security regression untuk debug routes, admin access, webhook signature, dan data isolation.
+## Route Baru Diverifikasi
 
-## Bug Logic Diperbaiki
+Teacher Attendance:
+- `POST /teacher-attendances/check-in`
+- `POST /teacher-attendances/check-out`
+- `GET /admin/teacher-attendances`
+- `GET /admin/teacher-attendances/create`
+- `GET /admin/teacher-attendances/{record}`
+- `GET /admin/teacher-attendances/{record}/edit`
 
-1. Midtrans `failure` status belum dipetakan ke `failed`.
-   - File: `app/Features/Payments/Services/MidtransService.php`
-   - File: `app/Features/Payments/Controllers/PaymentController.php`
-   - Alasan: webhook atau finish redirect dengan `transaction_status=failure` sebelumnya tetap `pending`.
+Site Setting:
+- `GET /admin/site-settings/teacher-attendance-schedule`
 
-2. Halaman riwayat absensi siswa error 500.
-   - File: `app/Features/Students/Controllers/StudentController.php`
-   - File: `resources/views/pages/student/attendance.blade.php`
-   - Alasan: kode lama memakai `meeting.subject`, sementara model `Meeting` sekarang memakai `class_group_id`; akses subject harus lewat `meeting.classGroup.subject`.
+Grade Control:
+- `GET /admin/grades/student/{user}/control`
+- `GET /admin/grades/student/{user}/pdf`
 
-## Route Penting Diverifikasi
+## Kategori Test Saat Ini
 
-- `/dashboard`
-- `/attendance`
-- `/payment/webhook`
-- `/payment/checkout`
-- `/berita/{slug}`
-- `/contact/send`
-- `/rapor-pdf/{class_group}/{user}`
-- `/admin`
-- `/admin/payments`
-- `/admin/users`
-- `/admin/semesters`
-- `/admin/site-settings/spmb-deadline`
-- Debug routes `/check-db`, `/clear-cache-sekarang`, `/cek-rute`, `/cek-pintu` return 404 di testing.
+Test yang tersedia:
+- Unit basic.
+- Grade service.
+- Grade report service.
+- Academic flow.
+- Auth.
+- Email verification.
+- Password confirmation/reset/update.
+- Registration.
+- Contacts.
+- Filament resource.
+- Student grade control report.
+- Meetings dan attendance santri.
+- Midtrans webhook.
+- Permissions/RBAC.
+- Posts.
+- Profile.
+- Namespace regression.
+- Reports PDF.
+- Security regression.
+- Site settings.
+- SPMB registration.
+- Student dashboard.
+- Student dashboard payment.
+- Teacher attendances.
 
-## Security Notes
+## Test Teacher Attendance
 
-- Guest tetap diarahkan ke login untuk dashboard dan admin.
-- Student aktif diarahkan keluar dari admin ke dashboard.
-- Guru tanpa permission resource tidak bisa membuka direct admin resource URL.
-- Superadmin tetap bypass permission.
-- Webhook invalid signature tidak mengubah payment.
-- Payment yang sudah `paid` tidak downgrade akibat webhook ulang.
-- Dashboard dan attendance student hanya mengambil data milik user login.
+File:
+- `tests/Feature/TeacherAttendances/TeacherAttendanceTest.php`
 
-## Catatan
+Skenario:
+- Guru bisa check-in untuk dirinya sendiri.
+- Check-in lewat batas waktu menghasilkan status `late`.
+- Batas waktu terlambat dapat dikonfigurasi dari `site_settings`.
+- Guru tidak bisa double check-in di tanggal yang sama.
+- Guru bisa check-out setelah check-in.
+- Guru tidak bisa check-out sebelum check-in.
+- Student tidak boleh check-in.
+- Superadmin bisa membuat absensi manual via service.
+- Unique constraint `user_id + date` bekerja.
+- Dashboard guru menampilkan status absensi hari ini.
+- Filament resource terlindungi permission.
 
-- `SubjectResource.php` masih kosong dan tidak diubah.
-- PDF test memakai mock DomPDF agar tidak bergantung pada driver PDF/GD environment.
-- Midtrans API asli tidak dipanggil; semua test memakai fake payload dan fake signature.
-- Tidak ada URL route, nama route, schema database, migration, atau desain UI yang diubah.
-- Perubahan Blade hanya memperbaiki path data absensi yang rusak, tanpa mengubah tampilan.
+Hasil:
+
+```text
+Tests: 11 passed
+Assertions: 24 assertions
+```
+
+## Test Dashboard
+
+File:
+- `tests/Feature/Students/StudentDashboardTest.php`
+
+Skenario penting:
+- Guest tidak bisa akses dashboard.
+- Student melihat ringkasan miliknya.
+- Student tidak melihat data student lain.
+- Dashboard aman saat data kosong.
+- Guru melihat jadwal dan rekap absensi meeting miliknya.
+- Dashboard guru juga menerima data teacher attendance dari service.
+
+## Test Filament
+
+File:
+- `tests/Feature/Filament/FilamentResourceTest.php`
+
+Pembaruan:
+- `TeacherAttendanceResource` ditambahkan ke daftar resource yang diverifikasi.
+- Superadmin dapat akses `/admin/teacher-attendances`.
+- Model resource diverifikasi memakai model feature yang benar.
+- Permission resource mengikuti trait `ChecksResourcePermission`.
+
+## Test Grade Control
+
+File:
+- `tests/Unit/Grades/GradeReportServiceTest.php`
+- `tests/Feature/Grades/StudentGradeControlReportTest.php`
+
+Skenario:
+- Assessment dipetakan ke tabel kontrol santri.
+- Catatan pembelajaran dari assessment masuk ke report.
+- Evaluation muncul sebelum rekap absensi.
+- Rekap attendance santri dihitung benar.
+- Superadmin dapat melihat tabel kontrol.
+- Guru hanya dapat akses santri di kelasnya.
+- Student tidak bisa akses PDF admin.
+- Grade query parameter harus cocok dengan student.
+
+## Test Payment/Midtrans
+
+File:
+- `tests/Feature/Payments/MidtransWebhookTest.php`
+
+Skenario:
+- Webhook settlement/capture update payment menjadi paid.
+- Invalid signature ditolak.
+- Order ID tidak ditemukan tidak fatal.
+- Payment lunas tidak downgrade.
+- Cancel/deny/expire/failure menjadi failed.
+
+## Test Security
+
+File:
+- `tests/Feature/Security/SecurityRegressionTest.php`
+
+Skenario:
+- Guest tidak bisa akses area protected.
+- Student inactive diarahkan ke approval notice.
+- Invalid webhook ditolak.
+- Student tidak bisa melihat data student lain.
+- Debug route tidak tersedia di testing/production.
+
+## Regression Namespace
+
+Sebelum dokumentasi diperbarui, full test sempat gagal karena dokumentasi lama masih memuat namespace legacy yang dilarang oleh regression test.
+
+Setelah dokumentasi dibersihkan:
+
+```text
+Tests: 4 passed
+Assertions: 3088 assertions
+```
+
+Full suite terbaru:
+
+```text
+Tests: 127 passed
+Assertions: 3416 assertions
+```
 
 ## Cara Menjalankan Test
 
@@ -86,14 +187,16 @@ php artisan route:list
 php artisan test
 ```
 
-Jika cache store lokal memakai database dan MySQL tidak aktif, jalankan:
+Jika cache store lokal mengarah ke database dan database tidak aktif:
 
 ```powershell
 $env:CACHE_STORE='array'; php artisan optimize:clear
 ```
 
-Coverage membutuhkan Xdebug atau PCOV:
+Coverage:
 
 ```bash
 php artisan test --coverage
 ```
+
+Coverage membutuhkan Xdebug atau PCOV.

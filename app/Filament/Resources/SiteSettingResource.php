@@ -123,6 +123,7 @@ class SiteSettingResource extends Resource
             'create' => Pages\CreateSiteSetting::route('/create'),
             'edit' => Pages\EditSiteSetting::route('/{record}/edit'),
             'manage-spmb' => Pages\ManageSPMBDeadline::route('/spmb-deadline'),
+            'manage-teacher-attendance' => Pages\ManageTeacherAttendanceSchedule::route('/teacher-attendance-schedule'),
         ];
     }
 }

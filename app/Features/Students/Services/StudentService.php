@@ -3,14 +3,20 @@
 namespace App\Features\Students\Services;
 
 use App\Features\Meetings\Models\Meeting;
+use App\Features\TeacherAttendances\Services\TeacherAttendanceService;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 
 class StudentService
 {
+    public function __construct(private readonly TeacherAttendanceService $teacherAttendanceService)
+    {
+    }
+
     public function teacherDashboardData(User $user): array
     {
         $baseQuery = $this->meetingQueryForTeacher($user);
+        $isGuru = $user->role === 'guru';
 
         return [
             'totalMeetings' => (clone $baseQuery)->count(),
@@ -26,6 +32,10 @@ class StudentService
                 ->limit(8)
                 ->get(),
             'attendanceSummary' => $this->attendanceSummary($baseQuery),
+            'teacherAttendanceToday' => $isGuru ? $this->teacherAttendanceService->getTodayAttendance($user) : null,
+            'teacherAttendanceRecent' => $isGuru ? $this->teacherAttendanceService->getRecentAttendances($user) : collect(),
+            'teacherAttendanceSummary' => $this->teacherAttendanceService->getTodaySummary(),
+            'teacherAttendanceTodayRows' => $user->role === 'superadmin' ? $this->teacherAttendanceService->getTodayAttendances() : collect(),
         ];
     }
 

@@ -399,6 +399,7 @@ class MockupDataSeeder extends Seeder
             'contact_address' => 'Jl. Pendidikan Qurani No. 23, Indonesia',
             'contact_phone' => '0812-0000-2323',
             'contact_email' => 'info@asy-syams.test',
+            'teacher_attendance_late_after' => '08:00',
         ];
 
         foreach ($settings as $key => $value) {

@@ -14,6 +14,7 @@ use App\Features\Meetings\Models\Attendance;
 use App\Features\Meetings\Models\Meeting;
 use App\Features\Academic\Models\ClassGroup;
 use App\Features\Permissions\Models\RolePermission;
+use App\Features\TeacherAttendances\Models\TeacherAttendance;
 
 // --- 1. TAMBAHAN IMPORT FILAMENT ---
 use Filament\Models\Contracts\FilamentUser;
@@ -57,6 +58,13 @@ class User extends Authenticatable implements FilamentUser
         'attendances.update',
         'attendances.delete',
         'attendances.manage',
+        'teacher-attendances.view',
+        'teacher-attendances.create',
+        'teacher-attendances.update',
+        'teacher-attendances.delete',
+        'teacher-attendances.manage',
+        'teacher-attendances.check-in',
+        'teacher-attendances.report',
         'assessments.view',
         'assessments.create',
         'assessments.update',
@@ -97,6 +105,8 @@ class User extends Authenticatable implements FilamentUser
         'meetings.manage' => 'filament.admin.resources.meetings.index',
         'attendances.view' => 'filament.admin.resources.meetings.index',
         'attendances.manage' => 'filament.admin.resources.meetings.index',
+        'teacher-attendances.view' => 'filament.admin.resources.teacher-attendances.index',
+        'teacher-attendances.manage' => 'filament.admin.resources.teacher-attendances.index',
         'assessments.view' => 'filament.admin.resources.assessments.index',
         'assessments.manage' => 'filament.admin.resources.assessments.index',
         'evaluations.view' => 'filament.admin.resources.evaluations.index',
@@ -198,6 +208,16 @@ class User extends Authenticatable implements FilamentUser
     public function classGroupsAsTeacher()
     {
         return $this->hasMany(ClassGroup::class, 'teacher_id');
+    }
+
+    public function teacherAttendances()
+    {
+        return $this->hasMany(TeacherAttendance::class, 'user_id');
+    }
+
+    public function createdTeacherAttendances()
+    {
+        return $this->hasMany(TeacherAttendance::class, 'created_by');
     }
 
     // --- RELASI UNTUK SANTRI ---

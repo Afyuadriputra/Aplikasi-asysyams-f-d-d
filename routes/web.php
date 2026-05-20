@@ -2,6 +2,7 @@
 
 use App\Features\Payments\Controllers\PaymentController;
 use App\Features\Grades\Controllers\GradeReportController;
+use App\Features\TeacherAttendances\Controllers\TeacherAttendanceController;
 use App\Features\Posts\Controllers\PostController;
 use App\Http\Controllers\ProfileController;
 use App\Features\Students\Controllers\StudentController;
@@ -100,6 +101,14 @@ Route::middleware(['auth', 'verified', 'is_active'])->group(function () {
     Route::get('/attendance', [StudentController::class, 'attendance'])
         ->middleware(EnsureUserHasPermission::class . ':dashboard.view')
         ->name('student.attendance');
+
+    Route::post('/teacher-attendances/check-in', [TeacherAttendanceController::class, 'checkIn'])
+        ->middleware(EnsureUserHasPermission::class . ':teacher-attendances.check-in')
+        ->name('teacher-attendances.check-in');
+
+    Route::post('/teacher-attendances/check-out', [TeacherAttendanceController::class, 'checkOut'])
+        ->middleware(EnsureUserHasPermission::class . ':teacher-attendances.check-in')
+        ->name('teacher-attendances.check-out');
 
     // Payment Midtrans
     Route::get('/payment/checkout', [PaymentController::class, 'checkout'])
