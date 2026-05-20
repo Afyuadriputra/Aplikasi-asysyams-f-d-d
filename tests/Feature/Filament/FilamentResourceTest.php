@@ -15,6 +15,7 @@ use App\Features\Payments\Models\Payment;
 use App\Features\Posts\Models\Post;
 use App\Features\SiteSettings\Models\SiteSetting;
 use App\Features\TeacherAttendances\Models\TeacherAttendance;
+use App\Filament\Resources\ClassGroupResource\Pages\CreateClassGroup;
 use App\Filament\Resources\EvaluationResource\Pages\CreateEvaluation;
 use App\Filament\Resources\EvaluationResource\Pages\EditEvaluation;
 use Livewire\Livewire;
@@ -136,6 +137,57 @@ class FilamentResourceTest extends TestCase
             'surah_name' => 'Al-Fatihah',
             'song_name' => 'Bayati',
         ]);
+    }
+
+    public function test_class_group_resource_creates_controlled_class_name(): void
+    {
+        $admin = User::factory()->create(['role' => 'superadmin', 'is_active' => true]);
+        $teacher = User::factory()->create(['role' => 'guru', 'is_active' => true]);
+        $subject = Subject::create(['name' => 'Murottal', 'slug' => 'murottal']);
+        $semester = Semester::first();
+
+        $this->actingAs($admin);
+
+        Livewire::test(CreateClassGroup::class)
+            ->fillForm([
+                'class_type' => ClassGroup::TYPE_MUROTTAL,
+                'class_letter' => 'A',
+                'subject_id' => $subject->id,
+                'semester_id' => $semester->id,
+                'teacher_id' => $teacher->id,
+            ])
+            ->call('create')
+            ->assertHasNoFormErrors();
+
+        $this->assertDatabaseHas('class_groups', [
+            'class_type' => ClassGroup::TYPE_MUROTTAL,
+            'class_letter' => 'A',
+            'name' => 'Kelas Murottal A',
+            'subject_id' => $subject->id,
+            'semester_id' => $semester->id,
+        ]);
+    }
+
+    public function test_meeting_class_group_dropdown_shows_controlled_class_name(): void
+    {
+        $admin = User::factory()->create(['role' => 'superadmin', 'is_active' => true]);
+        $teacher = User::factory()->create(['role' => 'guru', 'is_active' => true]);
+        $subject = Subject::create(['name' => 'Tilawah', 'slug' => 'tilawah']);
+        $semester = Semester::first();
+
+        ClassGroup::create([
+            'class_type' => ClassGroup::TYPE_TILAWAH,
+            'class_letter' => 'A',
+            'subject_id' => $subject->id,
+            'semester_id' => $semester->id,
+            'teacher_id' => $teacher->id,
+        ]);
+
+        $this
+            ->actingAs($admin)
+            ->get('admin/meetings/create')
+            ->assertOk()
+            ->assertSee('Kelas Tilawah A');
     }
 
     public function test_evaluation_can_be_edited_with_surah_and_song_names(): void

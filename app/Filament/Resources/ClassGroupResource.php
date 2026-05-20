@@ -12,7 +12,6 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Illuminate\Support\Str;
 
 class ClassGroupResource extends Resource
 {
@@ -40,34 +39,45 @@ class ClassGroupResource extends Resource
         return $form
             ->schema([
                 Forms\Components\Card::make()->schema([
+                    Forms\Components\Select::make('class_type')
+                        ->label('Jenis Kelas')
+                        ->options(ClassGroup::classTypeOptions())
+                        ->required()
+                        ->live()
+                        ->afterStateUpdated(function ($state, Forms\Set $set, Forms\Get $get) {
+                            if (! ClassGroup::needsClassLetter($state)) {
+                                $set('class_letter', null);
+                            }
+
+                            static::generateClassName($set, $get);
+                        }),
+
+                    Forms\Components\Select::make('class_letter')
+                        ->label('Huruf Kelas')
+                        ->options(ClassGroup::classLetterOptions())
+                        ->required(fn (Forms\Get $get): bool => ClassGroup::needsClassLetter($get('class_type')))
+                        ->live()
+                        ->visible(fn (Forms\Get $get): bool => ClassGroup::needsClassLetter($get('class_type')))
+                        ->afterStateUpdated(fn ($state, Forms\Set $set, Forms\Get $get) => static::generateClassName($set, $get)),
+
                     Forms\Components\Select::make('subject_id')
                         ->label('Mata Pelajaran')
                         ->options(Subject::all()->pluck('name', 'id'))
                         ->required()
-                        ->searchable()
-                        ->live()
-                        ->afterStateUpdated(function (string $operation, $state, Forms\Set $set, Forms\Get $get) {
-                            if ($operation === 'create') {
-                                static::generateClassName($set, $get);
-                            }
-                        }),
+                        ->searchable(),
 
                     Forms\Components\Select::make('semester_id')
                         ->label('Semester')
                         ->options(Semester::all()->pluck('name', 'id'))
                         ->required()
                         ->live()
-                        ->afterStateUpdated(function (string $operation, $state, Forms\Set $set, Forms\Get $get) {
-                            if ($operation === 'create') {
-                                static::generateClassName($set, $get);
-                            }
-                        }),
+                        ->afterStateUpdated(fn ($state, Forms\Set $set, Forms\Get $get) => static::generateClassName($set, $get)),
 
                     Forms\Components\TextInput::make('name')
                         ->label('Nama Kelas')
-                        ->required()
-                        ->placeholder('Otomatis terisi setelah pilih mapel & semester')
+                        ->placeholder('Otomatis terisi dari jenis dan huruf kelas')
                         ->disabled()
+                        ->afterStateHydrated(fn (Forms\Set $set, Forms\Get $get) => static::generateClassName($set, $get))
                         ->dehydrated(),
 
                     Forms\Components\Select::make('teacher_id')
@@ -82,33 +92,23 @@ class ClassGroupResource extends Resource
                     //     ->columnSpanFull(),
 
                     Forms\Components\Hidden::make('slug'),
-                ])->columns(2)
+                ])->columns(2),
             ]);
     }
 
     protected static function generateClassName(Forms\Set $set, Forms\Get $get): void
     {
-        $subjectId = $get('subject_id');
-        $semesterId = $get('semester_id');
+        $name = ClassGroup::generateNameFromTypeAndLetter(
+            $get('class_type'),
+            $get('class_letter'),
+        );
 
-        if (!$subjectId || !$semesterId) {
+        if ($name === '-') {
+            $set('name', null);
             return;
         }
 
-        $subject = Subject::find($subjectId);
-        if (!$subject) {
-            return;
-        }
-
-        $existingCount = ClassGroup::where('subject_id', $subjectId)
-            ->where('semester_id', $semesterId)
-            ->count();
-
-        $letter = chr(65 + $existingCount);
-
-        $name = $subject->name . ' ' . $letter;
         $set('name', $name);
-        $set('slug', Str::slug($name));
     }
 
     public static function table(Table $table): Table
@@ -119,6 +119,17 @@ class ClassGroupResource extends Resource
                     ->label('Nama Kelas')
                     ->searchable()
                     ->sortable(),
+
+                Tables\Columns\TextColumn::make('class_type')
+                    ->label('Jenis Kelas')
+                    ->formatStateUsing(fn (?string $state): string => ClassGroup::classTypeLabel($state))
+                    ->badge()
+                    ->color('primary'),
+
+                Tables\Columns\TextColumn::make('class_letter')
+                    ->label('Huruf')
+                    ->placeholder('-')
+                    ->badge(),
 
                 Tables\Columns\TextColumn::make('subject.name')
                     ->label('Mapel')
@@ -135,12 +146,25 @@ class ClassGroupResource extends Resource
                     ->sortable()
                     ->searchable(),
 
+                Tables\Columns\TextColumn::make('students_count')
+                    ->counts('students')
+                    ->label('Jumlah Santri')
+                    ->badge(),
+
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()
                     ->label('Dibuat')
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
+                Tables\Filters\SelectFilter::make('class_type')
+                    ->label('Filter Jenis Kelas')
+                    ->options(ClassGroup::classTypeOptions()),
+
+                Tables\Filters\SelectFilter::make('class_letter')
+                    ->label('Filter Huruf Kelas')
+                    ->options(ClassGroup::classLetterOptions()),
+
                 Tables\Filters\SelectFilter::make('subject_id')
                     ->label('Filter Mapel')
                     ->options(Subject::pluck('name', 'id')),
@@ -148,6 +172,10 @@ class ClassGroupResource extends Resource
                 Tables\Filters\SelectFilter::make('semester_id')
                     ->label('Filter Semester')
                     ->options(Semester::pluck('name', 'id')),
+
+                Tables\Filters\SelectFilter::make('teacher_id')
+                    ->label('Filter Guru')
+                    ->options(User::whereIn('role', ['superadmin', 'guru'])->pluck('name', 'id')),
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),

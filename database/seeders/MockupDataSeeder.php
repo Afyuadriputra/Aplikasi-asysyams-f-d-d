@@ -149,13 +149,15 @@ class MockupDataSeeder extends Seeder
         );
 
         $subjectTahsin = $this->subject('Tahsin', 'tahsin');
-        $subjectTahfidz = $this->subject('Tahfidz', 'tahfidz');
-        $subjectTajwid = $this->subject('Tajwid', 'tajwid');
+        $subjectMurottal = $this->subject('Murottal', 'murottal');
+        $subjectTilawah = $this->subject('Tilawah', 'tilawah');
         $this->subject('Baca & Tulis', 'baca-tulis');
+        $this->subject('Tahfidz', 'tahfidz');
+        $this->subject('Tajwid', 'tajwid');
 
-        $kelasTahsin = $this->classGroup('Tahsin A', $subjectTahsin, $semesterAktif, $guruTahsin);
-        $kelasTahfidz = $this->classGroup('Tahfidz A', $subjectTahfidz, $semesterAktif, $guruTahfidz);
-        $kelasTajwid = $this->classGroup('Tajwid Lanjutan', $subjectTajwid, $semesterLalu, $guruTahsin);
+        $kelasTahsin = $this->classGroup('Kelas Tahsin', $subjectTahsin, $semesterAktif, $guruTahsin, 'tahsin');
+        $kelasTahfidz = $this->classGroup('Kelas Murottal A', $subjectMurottal, $semesterAktif, $guruTahfidz, 'murottal', 'A');
+        $kelasTajwid = $this->classGroup('Kelas Tilawah A', $subjectTilawah, $semesterLalu, $guruTahsin, 'tilawah', 'A');
 
         $this->attachStudentsToClassGroup($kelasTahsin, $students->take(3)->all(), now());
         $this->attachStudentsToClassGroup($kelasTahfidz, $students->slice(1, 3)->all(), now());
@@ -284,12 +286,25 @@ class MockupDataSeeder extends Seeder
         );
     }
 
-    private function classGroup(string $name, Subject $subject, Semester $semester, User $teacher): ClassGroup
+    private function classGroup(
+        string $name,
+        Subject $subject,
+        Semester $semester,
+        User $teacher,
+        ?string $classType = null,
+        ?string $classLetter = null,
+    ): ClassGroup
     {
+        $lookupName = $classType
+            ? ClassGroup::generateNameFromTypeAndLetter($classType, $classLetter)
+            : $name;
+
         return ClassGroup::updateOrCreate(
-            ['slug' => Str::slug($name . '-' . $semester->name)],
+            ['slug' => Str::slug($lookupName . '-' . $semester->id)],
             [
-                'name' => $name,
+                'name' => $lookupName,
+                'class_type' => $classType,
+                'class_letter' => $classLetter,
                 'subject_id' => $subject->id,
                 'semester_id' => $semester->id,
                 'teacher_id' => $teacher->id,

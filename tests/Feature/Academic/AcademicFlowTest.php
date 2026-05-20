@@ -10,6 +10,7 @@ use App\Features\Grades\Models\Assessment;
 use App\Features\Grades\Models\Evaluation;
 use App\Features\Meetings\Models\Meeting;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 class AcademicFlowTest extends TestCase
@@ -66,6 +67,120 @@ class AcademicFlowTest extends TestCase
         $this->assertEquals($guru->id, $classGroup->teacher->id);
     }
 
+    public function test_can_create_tahsin_and_baca_tulis_without_letter(): void
+    {
+        [$semester, $subject, $guru] = $this->makeClassGroupDependencies();
+
+        $tahsin = ClassGroup::create([
+            'class_type' => ClassGroup::TYPE_TAHSIN,
+            'subject_id' => $subject->id,
+            'semester_id' => $semester->id,
+            'teacher_id' => $guru->id,
+        ]);
+
+        $bacaTulis = ClassGroup::create([
+            'class_type' => ClassGroup::TYPE_BACA_TULIS,
+            'subject_id' => $subject->id,
+            'semester_id' => $semester->id,
+            'teacher_id' => $guru->id,
+        ]);
+
+        $this->assertSame('Kelas Tahsin', $tahsin->name);
+        $this->assertNull($tahsin->class_letter);
+        $this->assertSame('Kelas Baca Tulis', $bacaTulis->name);
+        $this->assertNull($bacaTulis->class_letter);
+    }
+
+    public function test_can_create_murottal_and_tilawah_with_letter(): void
+    {
+        [$semester, $subject, $guru] = $this->makeClassGroupDependencies();
+
+        $murottal = ClassGroup::create([
+            'class_type' => ClassGroup::TYPE_MUROTTAL,
+            'class_letter' => 'A',
+            'subject_id' => $subject->id,
+            'semester_id' => $semester->id,
+            'teacher_id' => $guru->id,
+        ]);
+
+        $tilawah = ClassGroup::create([
+            'class_type' => ClassGroup::TYPE_TILAWAH,
+            'class_letter' => 'Z',
+            'subject_id' => $subject->id,
+            'semester_id' => $semester->id,
+            'teacher_id' => $guru->id,
+        ]);
+
+        $this->assertSame('Kelas Murottal A', $murottal->name);
+        $this->assertSame('A', $murottal->class_letter);
+        $this->assertSame('Kelas Tilawah Z', $tilawah->name);
+        $this->assertSame('Z', $tilawah->class_letter);
+    }
+
+    public function test_tahsin_and_baca_tulis_cannot_use_letter(): void
+    {
+        [$semester, $subject, $guru] = $this->makeClassGroupDependencies();
+
+        foreach ([ClassGroup::TYPE_TAHSIN, ClassGroup::TYPE_BACA_TULIS] as $classType) {
+            try {
+                ClassGroup::create([
+                    'class_type' => $classType,
+                    'class_letter' => 'A',
+                    'subject_id' => $subject->id,
+                    'semester_id' => $semester->id,
+                    'teacher_id' => $guru->id,
+                ]);
+
+                $this->fail('Class group with invalid letter was created.');
+            } catch (ValidationException $exception) {
+                $this->assertArrayHasKey('class_letter', $exception->errors());
+            }
+        }
+    }
+
+    public function test_murottal_and_tilawah_require_letter(): void
+    {
+        [$semester, $subject, $guru] = $this->makeClassGroupDependencies();
+
+        foreach ([ClassGroup::TYPE_MUROTTAL, ClassGroup::TYPE_TILAWAH] as $classType) {
+            try {
+                ClassGroup::create([
+                    'class_type' => $classType,
+                    'subject_id' => $subject->id,
+                    'semester_id' => $semester->id,
+                    'teacher_id' => $guru->id,
+                ]);
+
+                $this->fail('Class group without required letter was created.');
+            } catch (ValidationException $exception) {
+                $this->assertArrayHasKey('class_letter', $exception->errors());
+            }
+        }
+    }
+
+    public function test_cannot_duplicate_class_type_letter_and_semester(): void
+    {
+        [$semester, $subject, $guru] = $this->makeClassGroupDependencies();
+
+        ClassGroup::create([
+            'class_type' => ClassGroup::TYPE_MUROTTAL,
+            'class_letter' => 'A',
+            'subject_id' => $subject->id,
+            'semester_id' => $semester->id,
+            'teacher_id' => $guru->id,
+        ]);
+
+        $this->expectException(ValidationException::class);
+
+        ClassGroup::create([
+            'class_type' => ClassGroup::TYPE_MUROTTAL,
+            'class_letter' => 'A',
+            'subject_id' => $subject->id,
+            'semester_id' => $semester->id,
+            'teacher_id' => $guru->id,
+        ]);
+    }
+
     public function test_class_group_can_have_many_students()
     {
         $semester = Semester::create(['name' => 'S1', 'year' => '2024', 'start_date' => now(), 'end_date' => now(), 'is_active' => true]);
@@ -116,5 +231,20 @@ class AcademicFlowTest extends TestCase
         $this->assertTrue($classGroup->meetings->contains($meeting));
         $this->assertTrue($classGroup->assessments->contains($assessment));
         $this->assertTrue($classGroup->evaluations->contains($evaluation));
+    }
+
+    private function makeClassGroupDependencies(): array
+    {
+        $guru = User::factory()->create(['role' => 'guru']);
+        $semester = Semester::create([
+            'name' => 'Ganjil 2026',
+            'year' => '2026/2027',
+            'start_date' => now(),
+            'end_date' => now()->addMonths(6),
+            'is_active' => true,
+        ]);
+        $subject = Subject::create(['name' => 'Tilawah', 'slug' => 'tilawah']);
+
+        return [$semester, $subject, $guru];
     }
 }

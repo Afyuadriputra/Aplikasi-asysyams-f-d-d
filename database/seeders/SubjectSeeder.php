@@ -12,6 +12,8 @@ class SubjectSeeder extends Seeder
         $subjects = [
             ['name' => 'Baca & Tulis', 'slug' => 'baca-tulis'],
             ['name' => 'Tahsin', 'slug' => 'tahsin'],
+            ['name' => 'Murottal', 'slug' => 'murottal'],
+            ['name' => 'Tilawah', 'slug' => 'tilawah'],
             ['name' => 'Tahfidz', 'slug' => 'tahfidz'],
             ['name' => 'Tajwid', 'slug' => 'tajwid'],
         ];
