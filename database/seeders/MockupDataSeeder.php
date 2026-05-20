@@ -148,30 +148,18 @@ class MockupDataSeeder extends Seeder
             ],
         );
 
-        $subjects = collect([
-            ['name' => 'Tahsin', 'slug' => 'tahsin'],
-            ['name' => 'Tahfidz', 'slug' => 'tahfidz'],
-            ['name' => 'Tajwid', 'slug' => 'tajwid'],
-            ['name' => 'Baca & Tulis', 'slug' => 'baca-tulis'],
-        ])->mapWithKeys(fn (array $data) => [
-            $data['slug'] => Subject::updateOrCreate(['slug' => $data['slug']], $data),
-        ]);
+        $subjectTahsin = $this->subject('Tahsin', 'tahsin');
+        $subjectTahfidz = $this->subject('Tahfidz', 'tahfidz');
+        $subjectTajwid = $this->subject('Tajwid', 'tajwid');
+        $this->subject('Baca & Tulis', 'baca-tulis');
 
-        $kelasTahsin = $this->classGroup('Tahsin A', $subjects['tahsin'], $semesterAktif, $guruTahsin);
-        $kelasTahfidz = $this->classGroup('Tahfidz A', $subjects['tahfidz'], $semesterAktif, $guruTahfidz);
-        $kelasTajwid = $this->classGroup('Tajwid Lanjutan', $subjects['tajwid'], $semesterLalu, $guruTahsin);
+        $kelasTahsin = $this->classGroup('Tahsin A', $subjectTahsin, $semesterAktif, $guruTahsin);
+        $kelasTahfidz = $this->classGroup('Tahfidz A', $subjectTahfidz, $semesterAktif, $guruTahfidz);
+        $kelasTajwid = $this->classGroup('Tajwid Lanjutan', $subjectTajwid, $semesterLalu, $guruTahsin);
 
-        $kelasTahsin->students()->syncWithoutDetaching($students->take(3)->mapWithKeys(fn (User $student) => [
-            $student->id => ['joined_at' => now()],
-        ])->all());
-
-        $kelasTahfidz->students()->syncWithoutDetaching($students->slice(1, 3)->mapWithKeys(fn (User $student) => [
-            $student->id => ['joined_at' => now()],
-        ])->all());
-
-        $kelasTajwid->students()->syncWithoutDetaching($students->mapWithKeys(fn (User $student) => [
-            $student->id => ['joined_at' => now()->subMonths(4)],
-        ])->all());
+        $this->attachStudentsToClassGroup($kelasTahsin, $students->take(3)->all(), now());
+        $this->attachStudentsToClassGroup($kelasTahfidz, $students->slice(1, 3)->all(), now());
+        $this->attachStudentsToClassGroup($kelasTajwid, $students->all(), now()->subMonths(4));
 
         $meetings = collect([
             $this->meeting($kelasTahsin, $guruTahsin, 'Makharijul Huruf dan Sifat Huruf', '2026-07-08'),
@@ -288,6 +276,14 @@ class MockupDataSeeder extends Seeder
         );
     }
 
+    private function subject(string $name, string $slug): Subject
+    {
+        return Subject::updateOrCreate(
+            ['slug' => $slug],
+            ['name' => $name, 'slug' => $slug],
+        );
+    }
+
     private function classGroup(string $name, Subject $subject, Semester $semester, User $teacher): ClassGroup
     {
         return ClassGroup::updateOrCreate(
@@ -300,6 +296,19 @@ class MockupDataSeeder extends Seeder
                 'description' => 'Data kelas mockup untuk demo operasional akademik Asy-Syams.',
             ],
         );
+    }
+
+    private function attachStudentsToClassGroup(ClassGroup $classGroup, array $students, mixed $joinedAt): void
+    {
+        $studentIds = [];
+
+        foreach ($students as $student) {
+            if ($student instanceof User) {
+                $studentIds[$student->id] = ['joined_at' => $joinedAt];
+            }
+        }
+
+        $classGroup->students()->syncWithoutDetaching($studentIds);
     }
 
     private function meeting(ClassGroup $classGroup, User $teacher, string $title, string $date): Meeting
