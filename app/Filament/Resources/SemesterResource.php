@@ -42,6 +42,7 @@ class SemesterResource extends Resource
                         ->label('Biaya SPP (Rupiah)')
                         ->prefix('Rp')
                         ->numeric()
+                        ->minValue(0)
                         ->required(),
                         
                     Forms\Components\DatePicker::make('start_date')
@@ -50,6 +51,7 @@ class SemesterResource extends Resource
                         
                     Forms\Components\DatePicker::make('end_date')
                         ->label('Tanggal Berakhir')
+                        ->afterOrEqual('start_date')
                         ->required(),
                         
                     Forms\Components\Toggle::make('is_active')
@@ -99,7 +101,7 @@ class SemesterResource extends Resource
     public static function getRelations(): array
     {
         return [
-            //
+            SemesterResource\RelationManagers\PaymentsRelationManager::class,
         ];
     }
 

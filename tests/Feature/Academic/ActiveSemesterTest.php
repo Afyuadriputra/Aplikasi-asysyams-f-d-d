@@ -15,14 +15,14 @@ class ActiveSemesterTest extends TestCase
         $semester1 = Semester::create([
             'name' => 'Semester 1 2026/2027',
             'start_date' => now()->startOfYear(),
-            'end_date' => now()->addMonths(6),
+            'end_date' => now()->startOfYear()->addMonths(5),
             'is_active' => true,
             'tuition_fee' => 500000,
         ]);
 
         $semester2 = Semester::create([
             'name' => 'Semester 2 2026/2027',
-            'start_date' => now()->addMonths(6),
+            'start_date' => now()->startOfYear()->addMonths(6),
             'end_date' => now()->endOfYear(),
             'is_active' => true,
             'tuition_fee' => 500000,
@@ -39,7 +39,7 @@ class ActiveSemesterTest extends TestCase
         $semester1 = Semester::create([
             'name' => 'Semester 1 2026/2027',
             'start_date' => now()->startOfYear(),
-            'end_date' => now()->addMonths(6),
+            'end_date' => now()->startOfYear()->addMonths(5),
             'is_active' => true,
             'tuition_fee' => 500000,
         ]);
@@ -48,7 +48,7 @@ class ActiveSemesterTest extends TestCase
 
         $semester2 = Semester::create([
             'name' => 'Semester 2 2026/2027',
-            'start_date' => now()->addMonths(6),
+            'start_date' => now()->startOfYear()->addMonths(6),
             'end_date' => now()->endOfYear(),
             'is_active' => true,
             'tuition_fee' => 500000,

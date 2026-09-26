@@ -16,13 +16,26 @@ class AcademicValidationTest extends TestCase
 
     public function test_semester_end_date_cannot_be_before_start_date(): void
     {
-        $startDate = now();
-        $invalidEndDate = now()->subMonth();
+        $this->expectException(ValidationException::class);
+
+        Semester::create([
+            'name' => 'Semester Invalid Dates',
+            'start_date' => now(),
+            'end_date' => now()->subMonth(),
+            'is_active' => false,
+            'tuition_fee' => 500000,
+        ]);
+    }
+
+    public function test_semester_end_date_after_start_date_is_allowed(): void
+    {
+        $startDate = now()->startOfDay();
+        $endDate = now()->addMonths(6)->startOfDay();
 
         $semester = Semester::create([
-            'name' => 'Semester Invalid Dates',
+            'name' => 'Semester Valid Dates',
             'start_date' => $startDate,
-            'end_date' => $invalidEndDate,
+            'end_date' => $endDate,
             'is_active' => false,
             'tuition_fee' => 500000,
         ]);
@@ -30,6 +43,110 @@ class AcademicValidationTest extends TestCase
         $this->assertTrue(
             $semester->end_date->gte($semester->start_date),
             'Semester end_date must be greater than or equal to start_date'
+        );
+        $this->assertDatabaseHas('semesters', [
+            'id' => $semester->id,
+            'name' => 'Semester Valid Dates',
+        ]);
+    }
+
+    public function test_semester_end_date_equal_start_date_is_allowed(): void
+    {
+        $sameDate = now()->startOfDay();
+
+        $semester = Semester::create([
+            'name' => 'Semester Same Day',
+            'start_date' => $sameDate,
+            'end_date' => $sameDate,
+            'is_active' => false,
+            'tuition_fee' => 500000,
+        ]);
+
+        $this->assertTrue(
+            $semester->end_date->equalTo($semester->start_date),
+            'Semester end_date equal to start_date must be allowed'
+        );
+        $this->assertDatabaseHas('semesters', [
+            'id' => $semester->id,
+            'name' => 'Semester Same Day',
+        ]);
+    }
+
+    public function test_negative_tuition_fee_is_rejected(): void
+    {
+        $this->expectException(ValidationException::class);
+
+        Semester::create([
+            'name' => 'Semester Negative Fee',
+            'start_date' => now(),
+            'end_date' => now()->addMonths(6),
+            'is_active' => false,
+            'tuition_fee' => -100000,
+        ]);
+    }
+
+    public function test_zero_tuition_fee_is_allowed(): void
+    {
+        $semester = Semester::create([
+            'name' => 'Semester Free',
+            'start_date' => now(),
+            'end_date' => now()->addMonths(6),
+            'is_active' => false,
+            'tuition_fee' => 0,
+        ]);
+
+        $this->assertEquals(0, (float) $semester->tuition_fee);
+        $this->assertDatabaseHas('semesters', [
+            'id' => $semester->id,
+            'name' => 'Semester Free',
+        ]);
+    }
+
+    public function test_positive_tuition_fee_is_allowed(): void
+    {
+        $semester = Semester::create([
+            'name' => 'Semester Paid Fee',
+            'start_date' => now(),
+            'end_date' => now()->addMonths(6),
+            'is_active' => false,
+            'tuition_fee' => 750000,
+        ]);
+
+        $this->assertEquals(750000, (float) $semester->tuition_fee);
+        $this->assertDatabaseHas('semesters', [
+            'id' => $semester->id,
+            'name' => 'Semester Paid Fee',
+        ]);
+    }
+
+    public function test_invalid_active_semester_does_not_deactivate_current_active_semester(): void
+    {
+        $currentActiveSemester = Semester::create([
+            'name' => 'Semester Aktif Tetap',
+            'start_date' => now(),
+            'end_date' => now()->addMonths(6),
+            'is_active' => true,
+            'tuition_fee' => 500000,
+        ]);
+
+        $this->assertTrue($currentActiveSemester->fresh()->is_active);
+
+        try {
+            Semester::create([
+                'name' => 'Semester Invalid Mencoba Aktif',
+                'start_date' => now(),
+                'end_date' => now()->subMonth(),
+                'is_active' => true,
+                'tuition_fee' => 500000,
+            ]);
+            $this->fail('Expected ValidationException was not thrown for invalid semester dates.');
+        } catch (ValidationException $e) {
+            // Expected validation failure
+        }
+
+        $this->assertTrue(
+            $currentActiveSemester->fresh()->is_active,
+            'Current active semester must not be deactivated when creating an invalid active semester'
         );
     }
 

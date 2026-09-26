@@ -172,7 +172,33 @@ class ClassGroup extends Model
             ->wherePivot('deleted_at', null)
             ->withPivot('joined_at', 'deleted_at')
             ->withTimestamps();
-            
+    }
+
+    public function attachStudent(User|int $student, array $pivotData = []): void
+    {
+        $studentModel = $student instanceof User ? $student : User::findOrFail($student);
+
+        if ($studentModel->role !== 'student') {
+            throw ValidationException::withMessages([
+                'student' => 'Hanya pengguna dengan role student yang dapat ditambahkan ke kelas.',
+            ]);
+        }
+
+        if (! $studentModel->is_active) {
+            throw ValidationException::withMessages([
+                'student' => 'Hanya santri dengan status aktif yang dapat ditambahkan ke kelas.',
+            ]);
+        }
+
+        if ($this->students()->where('users.id', $studentModel->id)->exists()) {
+            throw ValidationException::withMessages([
+                'student' => 'Santri sudah terdaftar dalam kelas ini.',
+            ]);
+        }
+
+        $pivotData['joined_at'] = $pivotData['joined_at'] ?? now();
+
+        $this->students()->attach($studentModel->id, $pivotData);
     }
 
     // Kelas punya banyak penilaian

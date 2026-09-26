@@ -6,6 +6,9 @@ use App\Features\Grades\Models\Grade;
 use App\Features\Payments\Models\Payment;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class Semester extends Model
 {
@@ -29,8 +32,10 @@ class Semester extends Model
     protected static function booted(): void
     {
         static::saving(function (Semester $semester): void {
+            static::validateSemester($semester);
+
             if ($semester->is_active && (! $semester->exists || $semester->isDirty('is_active'))) {
-                \Illuminate\Support\Facades\DB::transaction(function () use ($semester) {
+                DB::transaction(function () use ($semester) {
                     static::withoutEvents(function () use ($semester) {
                         static::query()
                             ->when($semester->exists, fn ($q) => $q->whereKeyNot($semester->getKey()))
@@ -40,6 +45,26 @@ class Semester extends Model
                 });
             }
         });
+    }
+
+    public static function validateSemester(Semester $semester): void
+    {
+        if ($semester->start_date && $semester->end_date) {
+            $startDate = Carbon::parse($semester->start_date)->startOfDay();
+            $endDate = Carbon::parse($semester->end_date)->startOfDay();
+
+            if ($endDate->lt($startDate)) {
+                throw ValidationException::withMessages([
+                    'end_date' => 'Tanggal berakhir semester tidak boleh mendahului tanggal mulai.',
+                ]);
+            }
+        }
+
+        if ($semester->tuition_fee !== null && (float) $semester->tuition_fee < 0) {
+            throw ValidationException::withMessages([
+                'tuition_fee' => 'Biaya SPP tidak boleh bernilai negatif.',
+            ]);
+        }
     }
 
     // Semester punya banyak data nilai siswa

@@ -4,9 +4,10 @@ namespace App\Filament\Resources\ClassGroupResource\RelationManagers;
 
 // INI ADALAH BARIS YANG MEMPERBAIKI ERROR SEBELUMNYA
 use App\Filament\Resources\AssessmentResource; 
-
+use App\Models\User;
 use Filament\Forms;
 use Filament\Forms\Form;
+use Filament\Notifications\Notification;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -19,6 +20,13 @@ class StudentsRelationManager extends RelationManager
 
     // Mengubah judul tabel di halaman
     protected static ?string $title = 'Daftar Santri';
+
+    public static function getEligibleStudentsQuery(?Builder $query = null): Builder
+    {
+        $builder = $query ?? User::query();
+
+        return $builder->where('role', 'student')->where('is_active', true);
+    }
 
     public function form(Form $form): Form
     {
@@ -62,9 +70,37 @@ class StudentsRelationManager extends RelationManager
                     ->label('+ Tambah Santri')
                     ->preloadRecordSelect() // Memuat opsi agar dropdown bisa langsung di-search
                     
-                    // Filter agar yang muncul di dropdown HANYA user dengan role 'student'
-                    ->recordSelectOptionsQuery(fn (Builder $query) => $query->where('role', 'student'))
+                    // Filter agar yang muncul di dropdown HANYA user dengan role 'student' dan status aktif
+                    ->recordSelectOptionsQuery(fn (Builder $query) => static::getEligibleStudentsQuery($query))
                     
+                    // Proteksi ganda terhadap manipulasi request / request tampering
+                    ->before(function (Tables\Actions\AttachAction $action, array $data, $livewire): void {
+                        $studentId = $data['recordId'] ?? null;
+                        if (! $studentId) {
+                            return;
+                        }
+
+                        $student = User::find($studentId);
+                        if (! $student || $student->role !== 'student' || ! $student->is_active) {
+                            Notification::make()
+                                ->title('Santri tidak valid atau belum aktif.')
+                                ->danger()
+                                ->send();
+
+                            $action->halt();
+                        }
+
+                        $classGroup = $livewire->getOwnerRecord();
+                        if ($classGroup->students()->where('users.id', $studentId)->exists()) {
+                            Notification::make()
+                                ->title('Santri sudah terdaftar di kelas ini.')
+                                ->warning()
+                                ->send();
+
+                            $action->halt();
+                        }
+                    })
+
                     // Custom form untuk memasukkan data pivot tambahan (joined_at)
                     ->form(fn (Tables\Actions\AttachAction $action): array => [
                         $action->getRecordSelect()

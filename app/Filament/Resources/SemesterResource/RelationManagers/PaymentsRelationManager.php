@@ -2,14 +2,17 @@
 
 namespace App\Filament\Resources\SemesterResource\RelationManagers;
 
+use App\Features\Academic\Models\Semester;
 use App\Features\Payments\Enums\PaymentStatus;
+use App\Features\Payments\Models\Payment;
 use App\Models\User;
 use Filament\Forms;
 use Filament\Forms\Form;
+use Filament\Notifications\Notification;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Filament\Notifications\Notification;
+use Illuminate\Support\Str;
 
 class PaymentsRelationManager extends RelationManager
 {
@@ -92,24 +95,7 @@ class PaymentsRelationManager extends RelationManager
                     ->modalHeading('Generate Tagihan SPP')
                     ->modalDescription('Sistem akan membuat data tagihan (status Pending) untuk semua siswa aktif di semester ini. Lanjutkan?')
                     ->action(function () {
-                        $semester = $this->getOwnerRecord();
-                        $students = User::where('role', 'student')->where('is_active', true)->get();
-                        
-                        $count = 0;
-                        foreach ($students as $student) {
-                            // Cek apakah sudah ada tagihan untuk siswa ini di semester ini?
-                            $exists = $semester->payments()->where('user_id', $student->id)->exists();
-
-                            if (!$exists) {
-                                $semester->payments()->create([
-                                    'user_id' => $student->id,
-                                    'order_id' => 'INV-' . $semester->id . '-' . $student->id . '-' . time(),
-                                    'amount' => $semester->tuition_fee, // Ambil nominal dari setting semester
-                                    'status' => 'pending', // Default Belum Bayar
-                                ]);
-                                $count++;
-                            }
-                        }
+                        $count = static::generateInvoicesForSemester($this->getOwnerRecord());
 
                         Notification::make()
                             ->title("Berhasil membuat $count tagihan baru.")
@@ -128,7 +114,7 @@ class PaymentsRelationManager extends RelationManager
                     ->color('success')
                     ->visible(fn ($record) => ! in_array($record->status, [PaymentStatus::Paid->value, 'success'], true))
                     ->requiresConfirmation()
-                    ->action(fn ($record) => $record->update(['status' => PaymentStatus::Paid->value, 'payment_type' => 'manual_cash'])),
+                    ->action(fn ($record) => static::markAsPaid($record)),
                     
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),
@@ -138,6 +124,36 @@ class PaymentsRelationManager extends RelationManager
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
             ]);
+    }
+
+    public static function generateInvoicesForSemester(Semester $semester): int
+    {
+        $students = User::where('role', 'student')->where('is_active', true)->get();
+        $count = 0;
+
+        foreach ($students as $student) {
+            $exists = $semester->payments()->where('user_id', $student->id)->exists();
+
+            if (! $exists) {
+                $semester->payments()->create([
+                    'user_id' => $student->id,
+                    'order_id' => 'INV-' . $semester->id . '-' . $student->id . '-' . time() . '-' . Str::random(4),
+                    'amount' => $semester->tuition_fee,
+                    'status' => PaymentStatus::Pending->value,
+                ]);
+                $count++;
+            }
+        }
+
+        return $count;
+    }
+
+    public static function markAsPaid(Payment $payment): void
+    {
+        $payment->update([
+            'status' => PaymentStatus::Paid->value,
+            'payment_type' => 'manual_cash',
+        ]);
     }
 
     public static function getStatusOptions(): array
