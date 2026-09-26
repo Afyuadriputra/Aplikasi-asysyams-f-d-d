@@ -21,6 +21,8 @@ class Assessment extends Model
 
     protected $casts = [
         'data' => 'array',
+        'month' => 'integer',
+        'year' => 'integer',
     ];
 
     public function student()

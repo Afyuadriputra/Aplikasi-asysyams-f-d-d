@@ -178,6 +178,60 @@ class MeetingResource extends Resource
         ];
     }
 
+    public static function getEloquentQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        $query = parent::getEloquentQuery();
+        $user = auth()->user();
+
+        if ($user && $user->role === 'guru') {
+            return $query->whereHas('classGroup', fn ($q) => $q->where('teacher_id', $user->id));
+        }
+
+        return $query;
+    }
+
+    public static function canView($record): bool
+    {
+        if (! static::canAccessAction('view')) {
+            return false;
+        }
+
+        $user = auth()->user();
+        if ($user && $user->role === 'guru') {
+            return (int) $record->classGroup?->teacher_id === (int) $user->id;
+        }
+
+        return true;
+    }
+
+    public static function canEdit($record): bool
+    {
+        if (! static::canAccessAction('update')) {
+            return false;
+        }
+
+        $user = auth()->user();
+        if ($user && $user->role === 'guru') {
+            return (int) $record->classGroup?->teacher_id === (int) $user->id;
+        }
+
+        return true;
+    }
+
+    public static function canDelete($record): bool
+    {
+        if (! static::canAccessAction('delete')) {
+            return false;
+        }
+
+        $user = auth()->user();
+        if ($user && $user->role === 'guru') {
+            return (int) $record->classGroup?->teacher_id === (int) $user->id;
+        }
+
+        return true;
+    }
+
     public static function getPages(): array
     {
         return [

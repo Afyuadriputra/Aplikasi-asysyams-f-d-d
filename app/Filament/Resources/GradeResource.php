@@ -127,6 +127,60 @@ class GradeResource extends Resource
         ];
     }
 
+    public static function getEloquentQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        $query = parent::getEloquentQuery();
+        $user = auth()->user();
+
+        if ($user && $user->role === 'guru') {
+            return $query->whereHas('student.classGroups', fn ($q) => $q->where('teacher_id', $user->id));
+        }
+
+        return $query;
+    }
+
+    public static function canView($record): bool
+    {
+        if (! static::canAccessAction('view')) {
+            return false;
+        }
+
+        $user = auth()->user();
+        if ($user && $user->role === 'guru') {
+            return (bool) $record->student?->classGroups()->where('teacher_id', $user->id)->exists();
+        }
+
+        return true;
+    }
+
+    public static function canEdit($record): bool
+    {
+        if (! static::canAccessAction('update')) {
+            return false;
+        }
+
+        $user = auth()->user();
+        if ($user && $user->role === 'guru') {
+            return (bool) $record->student?->classGroups()->where('teacher_id', $user->id)->exists();
+        }
+
+        return true;
+    }
+
+    public static function canDelete($record): bool
+    {
+        if (! static::canAccessAction('delete')) {
+            return false;
+        }
+
+        $user = auth()->user();
+        if ($user && $user->role === 'guru') {
+            return (bool) $record->student?->classGroups()->where('teacher_id', $user->id)->exists();
+        }
+
+        return true;
+    }
+
     private static function canAccessStudentControl(Grade $record): bool
     {
         $user = Auth::user();

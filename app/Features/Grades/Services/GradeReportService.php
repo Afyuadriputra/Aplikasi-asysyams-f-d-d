@@ -107,9 +107,9 @@ class GradeReportService
                 }
 
                 match ($assessment->assessment_type) {
-                    'ziyadah' => $this->fillZiyadah($rows[$dateKey], $item),
+                    'ziyadah', 'tahfidz' => $this->fillZiyadah($rows[$dateKey], $item),
                     'murojaah' => $this->fillMurojaah($rows[$dateKey], $item),
-                    'tahsin', 'tilawah' => $this->fillTahsin($rows[$dateKey], $item),
+                    'tahsin', 'tilawah', 'tajwid' => $this->fillTahsin($rows[$dateKey], $item),
                     default => null,
                 };
             }
