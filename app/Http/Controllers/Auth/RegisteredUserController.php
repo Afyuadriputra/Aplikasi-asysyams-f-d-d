@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers\Auth;
 
+use App\Features\Auth\Services\SpmbRegistrationService;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules;
@@ -17,16 +19,27 @@ class RegisteredUserController extends Controller
     /**
      * Display the registration view.
      */
-    public function create(): View
+    public function create(SpmbRegistrationService $spmbService): View|Response
     {
+        if (! $spmbService->isOpen()) {
+            return response()->view('auth.spmb-closed', [
+                'deadline' => $spmbService->getDeadline(),
+            ], 403);
+        }
+
         return view('auth.register');
     }
 
     /**
      * Handle an incoming registration request.
      */
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, SpmbRegistrationService $spmbService): RedirectResponse|Response
     {
+        if (! $spmbService->isOpen()) {
+            return response()->view('auth.spmb-closed', [
+                'deadline' => $spmbService->getDeadline(),
+            ], 403);
+        }
         $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],

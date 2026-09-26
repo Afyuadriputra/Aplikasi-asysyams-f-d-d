@@ -2,6 +2,7 @@
 
 namespace App\Features\Payments\Services;
 
+use App\Features\Payments\Enums\PaymentStatus;
 use App\Features\Payments\Models\Payment;
 use Illuminate\Support\Facades\Log;
 
@@ -43,18 +44,18 @@ class MidtransService
         $transactionStatus = $payload['transaction_status'] ?? '';
 
         // Jika sudah lunas, jangan ubah status jadi pending/failed lagi (idempotent)
-        if (in_array($payment->status, ['paid', 'success'])) {
+        if (in_array($payment->status, [PaymentStatus::Paid->value, 'success'], true)) {
             return true;
         }
 
         $newStatus = $payment->status;
 
-        if ($transactionStatus == 'capture' || $transactionStatus == 'settlement') {
-            $newStatus = 'paid';
-        } elseif ($transactionStatus == 'pending') {
-            $newStatus = 'pending';
-        } elseif ($transactionStatus == 'deny' || $transactionStatus == 'expire' || $transactionStatus == 'cancel' || $transactionStatus == 'failure') {
-            $newStatus = 'failed';
+        if ($transactionStatus === 'capture' || $transactionStatus === 'settlement') {
+            $newStatus = PaymentStatus::Paid->value;
+        } elseif ($transactionStatus === 'pending') {
+            $newStatus = PaymentStatus::Pending->value;
+        } elseif (in_array($transactionStatus, ['deny', 'expire', 'cancel', 'failure'], true)) {
+            $newStatus = PaymentStatus::Failed->value;
         }
 
         $payment->update([

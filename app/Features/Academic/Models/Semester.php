@@ -26,6 +26,22 @@ class Semester extends Model
         'tuition_fee' => 'decimal:2',
     ];
 
+    protected static function booted(): void
+    {
+        static::saving(function (Semester $semester): void {
+            if ($semester->is_active && (! $semester->exists || $semester->isDirty('is_active'))) {
+                \Illuminate\Support\Facades\DB::transaction(function () use ($semester) {
+                    static::withoutEvents(function () use ($semester) {
+                        static::query()
+                            ->when($semester->exists, fn ($q) => $q->whereKeyNot($semester->getKey()))
+                            ->where('is_active', true)
+                            ->update(['is_active' => false]);
+                    });
+                });
+            }
+        });
+    }
+
     // Semester punya banyak data nilai siswa
     public function grades()
     {

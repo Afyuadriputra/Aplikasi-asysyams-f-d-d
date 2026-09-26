@@ -2,13 +2,21 @@
 
 namespace Tests\Feature\Auth;
 
+use App\Features\Auth\Services\SpmbRegistrationService;
 use App\Features\SiteSettings\Models\SiteSetting;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Tests\TestCase;
 
 class SpmbDeadlineRegistrationTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function tearDown(): void
+    {
+        Carbon::setTestNow(null);
+        parent::tearDown();
+    }
 
     public function test_registration_is_blocked_when_spmb_deadline_has_passed(): void
     {
@@ -32,7 +40,7 @@ class SpmbDeadlineRegistrationTest extends TestCase
             'gender' => 'L',
         ]);
 
-        // BUG REPRODUCED: Application does not check spmb_deadline in RegisteredUserController
+        $response->assertStatus(403);
         $this->assertDatabaseMissing('users', [
             'email' => 'calon@example.com',
         ]);
@@ -66,9 +74,90 @@ class SpmbDeadlineRegistrationTest extends TestCase
         ]);
     }
 
-    public function test_register_page_is_accessible(): void
+    public function test_register_page_is_accessible_when_no_deadline_or_in_future(): void
     {
         $response = $this->get('/register');
         $response->assertStatus(200);
+
+        SiteSetting::create([
+            'key' => 'spmb_deadline',
+            'value' => now()->addDays(5)->toDateTimeString(),
+        ]);
+
+        $responseFuture = $this->get('/register');
+        $responseFuture->assertStatus(200);
+    }
+
+    public function test_register_page_returns_403_when_deadline_passed(): void
+    {
+        SiteSetting::create([
+            'key' => 'spmb_deadline',
+            'value' => now()->subHour()->toDateTimeString(),
+        ]);
+
+        $response = $this->get('/register');
+        $response->assertStatus(403);
+        $response->assertSee('Pendaftaran SPMB Ditutup');
+    }
+
+    public function test_date_only_deadline_remains_open_through_end_of_day(): void
+    {
+        SiteSetting::create([
+            'key' => 'spmb_deadline',
+            'value' => '2026-09-30',
+        ]);
+
+        $service = app(SpmbRegistrationService::class);
+
+        // 2026-09-29 12:00 -> OPEN
+        Carbon::setTestNow('2026-09-29 12:00:00');
+        $this->assertTrue($service->isOpen());
+
+        // 2026-09-30 00:00:00 -> OPEN
+        Carbon::setTestNow('2026-09-30 00:00:00');
+        $this->assertTrue($service->isOpen());
+
+        // 2026-09-30 23:59:00 -> OPEN
+        Carbon::setTestNow('2026-09-30 23:59:00');
+        $this->assertTrue($service->isOpen());
+
+        // 2026-10-01 00:00:01 -> CLOSED
+        Carbon::setTestNow('2026-10-01 00:00:01');
+        $this->assertFalse($service->isOpen());
+    }
+
+    public function test_datetime_deadline_enforces_exact_boundary(): void
+    {
+        SiteSetting::create([
+            'key' => 'spmb_deadline',
+            'value' => '2026-09-30 15:00:00',
+        ]);
+
+        $service = app(SpmbRegistrationService::class);
+
+        Carbon::setTestNow('2026-09-30 14:59:59');
+        $this->assertTrue($service->isOpen());
+
+        Carbon::setTestNow('2026-09-30 15:00:01');
+        $this->assertFalse($service->isOpen());
+    }
+
+    public function test_registration_open_when_no_deadline_configured(): void
+    {
+        $service = app(SpmbRegistrationService::class);
+        $this->assertNull($service->getDeadline());
+        $this->assertTrue($service->isOpen());
+    }
+
+    public function test_registration_open_when_invalid_deadline_configured(): void
+    {
+        SiteSetting::create([
+            'key' => 'spmb_deadline',
+            'value' => 'not-a-valid-date-string',
+        ]);
+
+        $service = app(SpmbRegistrationService::class);
+        $this->assertNull($service->getDeadline());
+        $this->assertTrue($service->isOpen());
     }
 }

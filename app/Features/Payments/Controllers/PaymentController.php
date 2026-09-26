@@ -2,6 +2,7 @@
 
 namespace App\Features\Payments\Controllers;
 
+use App\Features\Payments\Enums\PaymentStatus;
 use App\Features\Payments\Models\Payment;
 use App\Features\Academic\Models\Semester;
 use App\Models\User;
@@ -65,12 +66,12 @@ class PaymentController extends Controller
                 'semester_id' => $activeSemester->id,
                 'order_id' => $orderId,
                 'amount' => $activeSemester->tuition_fee,
-                'status' => 'pending',
+                'status' => PaymentStatus::Pending->value,
             ]);
         }
 
         // 3. Buat token baru untuk memastikan callback terbaru ikut terkirim ke Midtrans.
-        if (! in_array($payment->status, ['paid', 'success'], true)) {
+        if (! in_array($payment->status, [PaymentStatus::Paid->value, 'success'], true)) {
             $params = [
                 'transaction_details' => [
                     'order_id' => $payment->order_id,
@@ -137,7 +138,7 @@ class PaymentController extends Controller
                 ->where('user_id', Auth::id())
                 ->first();
 
-            if ($payment && ! in_array($payment->status, ['paid', 'success'], true)) {
+            if ($payment && ! in_array($payment->status, [PaymentStatus::Paid->value, 'success'], true)) {
                 $status = [];
                 $transactionStatus = $request->query('transaction_status');
 
@@ -156,7 +157,7 @@ class PaymentController extends Controller
 
                 if (in_array($transactionStatus, ['capture', 'settlement'], true)) {
                     $payment->update([
-                        'status' => 'paid',
+                        'status' => PaymentStatus::Paid->value,
                         'payment_type' => $status['payment_type'] ?? $request->query('payment_type') ?? $payment->payment_type,
                         'payment_detail' => $status !== [] ? $status : [
                             'order_id' => $orderId,
@@ -168,7 +169,7 @@ class PaymentController extends Controller
                     ]);
                 } elseif (in_array($transactionStatus, ['deny', 'expire', 'cancel', 'failure'], true)) {
                     $payment->update([
-                        'status' => 'failed',
+                        'status' => PaymentStatus::Failed->value,
                         'payment_type' => $status['payment_type'] ?? $request->query('payment_type') ?? $payment->payment_type,
                         'payment_detail' => $status !== [] ? $status : [
                             'order_id' => $orderId,

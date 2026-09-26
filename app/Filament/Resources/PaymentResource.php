@@ -2,8 +2,9 @@
 
 namespace App\Filament\Resources;
 
-use App\Filament\Resources\PaymentResource\Pages;
+use App\Features\Payments\Enums\PaymentStatus;
 use App\Features\Payments\Models\Payment;
+use App\Filament\Resources\PaymentResource\Pages;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -49,11 +50,8 @@ class PaymentResource extends Resource
                         ->required(),
 
                     Forms\Components\Select::make('status')
-                        ->options([
-                            'pending' => 'Pending (Menunggu)',
-                            'success' => 'Lunas (Success)',
-                            'failed' => 'Gagal',
-                        ])
+                        ->options(PaymentStatus::options())
+                        ->default(PaymentStatus::Paid->value)
                         ->required(),
                         
                     Forms\Components\TextInput::make('order_id')
@@ -91,8 +89,14 @@ class PaymentResource extends Resource
 
                 Tables\Columns\TextColumn::make('status')
                     ->badge()
+                    ->formatStateUsing(fn (string $state): string => match ($state) {
+                        'paid', 'success' => 'Lunas',
+                        'pending' => 'Menunggu',
+                        'failed' => 'Gagal',
+                        default => ucfirst($state),
+                    })
                     ->color(fn (string $state): string => match ($state) {
-                        'success' => 'success',
+                        'paid', 'success' => 'success',
                         'pending' => 'warning',
                         'failed' => 'danger',
                         default => 'gray',
@@ -110,10 +114,7 @@ class PaymentResource extends Resource
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('status')
-                    ->options([
-                        'success' => 'Lunas',
-                        'pending' => 'Belum Lunas',
-                    ]),
+                    ->options(PaymentStatus::filterOptions()),
                 Tables\Filters\SelectFilter::make('semester_id')
                     ->relationship('semester', 'name')
                     ->label('Filter Semester'),
@@ -142,5 +143,15 @@ class PaymentResource extends Resource
             'create' => Pages\CreatePayment::route('/create'),
             'edit' => Pages\EditPayment::route('/{record}/edit'),
         ];
+    }
+
+    public static function getStatusOptions(): array
+    {
+        return PaymentStatus::options();
+    }
+
+    public static function getStatusFilterOptions(): array
+    {
+        return PaymentStatus::filterOptions();
     }
 }

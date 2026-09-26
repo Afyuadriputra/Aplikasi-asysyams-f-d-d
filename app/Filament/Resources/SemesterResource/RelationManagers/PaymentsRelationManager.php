@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\SemesterResource\RelationManagers;
 
+use App\Features\Payments\Enums\PaymentStatus;
 use App\Models\User;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -32,11 +33,8 @@ class PaymentsRelationManager extends RelationManager
                     ->label('Tagihan'),
 
                 Forms\Components\Select::make('status')
-                    ->options([
-                        'pending' => 'Belum Bayar / Pending',
-                        'success' => 'Lunas',
-                        'failed' => 'Gagal',
-                    ])
+                    ->options(PaymentStatus::options())
+                    ->default(PaymentStatus::Paid->value)
                     ->required(),
             ]);
     }
@@ -62,8 +60,14 @@ class PaymentsRelationManager extends RelationManager
 
                 Tables\Columns\TextColumn::make('status')
                     ->badge()
+                    ->formatStateUsing(fn (string $state): string => match ($state) {
+                        'paid', 'success' => 'Lunas',
+                        'pending' => 'Menunggu',
+                        'failed' => 'Gagal',
+                        default => ucfirst($state),
+                    })
                     ->color(fn (string $state): string => match ($state) {
-                        'success' => 'success',
+                        'paid', 'success' => 'success',
                         'pending' => 'warning',
                         'failed' => 'danger',
                         default => 'gray',
@@ -76,10 +80,7 @@ class PaymentsRelationManager extends RelationManager
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('status')
-                    ->options([
-                        'success' => 'Sudah Bayar (Lunas)',
-                        'pending' => 'Belum Bayar (Pending)',
-                    ]),
+                    ->options(PaymentStatus::filterOptions()),
             ])
             ->headerActions([
                 // FITUR GENERATE TAGIHAN MASSAL
@@ -125,9 +126,9 @@ class PaymentsRelationManager extends RelationManager
                     ->label('Set Lunas')
                     ->icon('heroicon-o-check-circle')
                     ->color('success')
-                    ->visible(fn ($record) => $record->status !== 'success')
+                    ->visible(fn ($record) => ! in_array($record->status, [PaymentStatus::Paid->value, 'success'], true))
                     ->requiresConfirmation()
-                    ->action(fn ($record) => $record->update(['status' => 'success', 'payment_type' => 'manual_cash'])),
+                    ->action(fn ($record) => $record->update(['status' => PaymentStatus::Paid->value, 'payment_type' => 'manual_cash'])),
                     
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),
@@ -137,5 +138,15 @@ class PaymentsRelationManager extends RelationManager
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
             ]);
+    }
+
+    public static function getStatusOptions(): array
+    {
+        return PaymentStatus::options();
+    }
+
+    public static function getStatusFilterOptions(): array
+    {
+        return PaymentStatus::filterOptions();
     }
 }
