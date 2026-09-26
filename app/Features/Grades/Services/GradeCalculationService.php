@@ -36,8 +36,9 @@ class GradeCalculationService
             if (!is_array($data)) continue;
 
             foreach ($data as $item) {
-                if (isset($item['nilai'])) {
-                    $nilai = is_string($item['nilai']) ? strtoupper(trim($item['nilai'])) : $item['nilai'];
+                $rawNilai = $item['nilai'] ?? $item['nilai_penyetoran'] ?? null;
+                if ($rawNilai !== null) {
+                    $nilai = is_string($rawNilai) ? strtoupper(trim($rawNilai)) : $rawNilai;
                     if ($nilai === 'L') {
                         $totalScore += 100;
                     } elseif ($nilai === 'C') {
@@ -73,12 +74,29 @@ class GradeCalculationService
                 ? json_decode($evaluation['items'], true) 
                 : ($evaluation['items'] ?? []);
                 
-            if (!is_array($items)) continue;
+            $items = is_array($items) ? $items : [];
+            $hasItems = false;
 
             foreach ($items as $item) {
                 if (isset($item['score']) && is_numeric($item['score'])) {
                     $totalScore += (float) $item['score'];
                     $count++;
+                    $hasItems = true;
+                }
+            }
+
+            if (! $hasItems) {
+                $scores = is_string($evaluation['scores'] ?? null)
+                    ? json_decode($evaluation['scores'], true)
+                    : ($evaluation['scores'] ?? []);
+
+                if (is_array($scores)) {
+                    foreach ($scores as $score) {
+                        if (is_numeric($score)) {
+                            $totalScore += (float) $score;
+                            $count++;
+                        }
+                    }
                 }
             }
         }

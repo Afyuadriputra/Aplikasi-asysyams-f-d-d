@@ -138,17 +138,19 @@ class RowLevelAuthorizationTest extends TestCase
             'scores' => ['adab' => 85],
         ]);
 
-        $this->gradeA = Grade::create([
+        $this->gradeA = Grade::updateOrCreate([
             'user_id' => $this->santriA->id,
             'subject_id' => $subjectA->id,
             'semester_id' => $semester->id,
+        ], [
             'score' => 90,
         ]);
 
-        $this->gradeB = Grade::create([
+        $this->gradeB = Grade::updateOrCreate([
             'user_id' => $this->santriB->id,
             'subject_id' => $subjectB->id,
             'semester_id' => $semester->id,
+        ], [
             'score' => 85,
         ]);
     }
