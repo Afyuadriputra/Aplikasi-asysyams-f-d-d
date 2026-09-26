@@ -62,4 +62,33 @@ class PaymentStatusContractTest extends TestCase
             "Midtrans status '{$payment->status}' must be present in Filament PaymentResource options"
         );
     }
+
+    public function test_filament_payments_table_and_relation_manager_filter_paid_status(): void
+    {
+        // Status contract mismatch: Midtrans sets 'paid', but RelationManager filter only recognizes 'success'
+        $relationManagerFilterOptions = [
+            'success' => 'Sudah Bayar (Lunas)',
+            'pending' => 'Belum Bayar (Pending)',
+        ];
+
+        $payment = Payment::create([
+            'user_id' => User::factory()->create(['role' => 'student'])->id,
+            'semester_id' => Semester::create([
+                'name' => 'Sem Test',
+                'start_date' => now(),
+                'end_date' => now()->addMonths(6),
+                'is_active' => true,
+                'tuition_fee' => 100000,
+            ])->id,
+            'order_id' => 'ORDER-RELATION-TEST',
+            'amount' => 100000,
+            'status' => 'paid',
+        ]);
+
+        $this->assertArrayHasKey(
+            $payment->status,
+            $relationManagerFilterOptions,
+            "PaymentsRelationManager filter must support Midtrans 'paid' status"
+        );
+    }
 }

@@ -313,4 +313,70 @@ class RowLevelAuthorizationTest extends TestCase
         $this->assertContains($this->classA->id, $visibleClassesForEvaluation);
         $this->assertNotContains($this->classB->id, $visibleClassesForEvaluation);
     }
+
+    public function test_guru_a_cannot_access_grade_of_shared_student_for_guru_b_subject(): void
+    {
+        // Santri Shared is enrolled in both Class A (Guru A, Subject A) and Class B (Guru B, Subject B)
+        $santriShared = User::factory()->create(['role' => 'student', 'name' => 'Santri Shared', 'is_active' => true]);
+        $this->classA->students()->attach($santriShared->id, ['joined_at' => now()]);
+        $this->classB->students()->attach($santriShared->id, ['joined_at' => now()]);
+
+        // Grade for Subject B belongs to Guru B
+        $gradeSubjectB = Grade::create([
+            'user_id' => $santriShared->id,
+            'subject_id' => $this->classB->subject_id,
+            'semester_id' => $this->classB->semester_id,
+            'score' => 88,
+        ]);
+
+        $this->actingAs($this->guruA);
+
+        $visibleGradeIds = GradeResource::getEloquentQuery()->pluck('id')->toArray();
+        $this->assertNotContains(
+            $gradeSubjectB->id,
+            $visibleGradeIds,
+            'Guru A must not see Grade of shared student for Subject B (taught by Guru B)'
+        );
+
+        $this->assertFalse(
+            GradeResource::canView($gradeSubjectB),
+            'Guru A canView must return false for foreign subject grade of shared student'
+        );
+        $this->assertFalse(
+            GradeResource::canEdit($gradeSubjectB),
+            'Guru A canEdit must return false for foreign subject grade of shared student'
+        );
+        $this->assertFalse(
+            GradeResource::canDelete($gradeSubjectB),
+            'Guru A canDelete must return false for foreign subject grade of shared student'
+        );
+    }
+
+    public function test_guru_b_cannot_access_grade_of_shared_student_for_guru_a_subject(): void
+    {
+        $santriShared = User::factory()->create(['role' => 'student', 'name' => 'Santri Shared 2', 'is_active' => true]);
+        $this->classA->students()->attach($santriShared->id, ['joined_at' => now()]);
+        $this->classB->students()->attach($santriShared->id, ['joined_at' => now()]);
+
+        // Grade for Subject A belongs to Guru A
+        $gradeSubjectA = Grade::create([
+            'user_id' => $santriShared->id,
+            'subject_id' => $this->classA->subject_id,
+            'semester_id' => $this->classA->semester_id,
+            'score' => 92,
+        ]);
+
+        $this->actingAs($this->guruB);
+
+        $visibleGradeIds = GradeResource::getEloquentQuery()->pluck('id')->toArray();
+        $this->assertNotContains(
+            $gradeSubjectA->id,
+            $visibleGradeIds,
+            'Guru B must not see Grade of shared student for Subject A (taught by Guru A)'
+        );
+
+        $this->assertFalse(GradeResource::canView($gradeSubjectA));
+        $this->assertFalse(GradeResource::canEdit($gradeSubjectA));
+        $this->assertFalse(GradeResource::canDelete($gradeSubjectA));
+    }
 }

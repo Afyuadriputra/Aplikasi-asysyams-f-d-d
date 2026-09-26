@@ -102,4 +102,79 @@ class AssessmentDatabaseContractTest extends TestCase
         $this->assertNotNull($assessmentOct->id);
         $this->assertNotEquals($assessmentSep->id, $assessmentOct->id);
     }
+
+    public function test_same_period_duplicate_assessment_rejected(): void
+    {
+        Assessment::create([
+            'class_group_id' => $this->classGroup->id,
+            'user_id' => $this->student->id,
+            'assessment_type' => 'ziyadah',
+            'month' => 9,
+            'year' => 2026,
+            'data' => [['surah' => 'Al-Baqarah', 'ayat' => '1-10', 'nilai' => 'L']],
+        ]);
+
+        $this->expectException(\Illuminate\Database\QueryException::class);
+
+        Assessment::create([
+            'class_group_id' => $this->classGroup->id,
+            'user_id' => $this->student->id,
+            'assessment_type' => 'ziyadah',
+            'month' => 9,
+            'year' => 2026,
+            'data' => [['surah' => 'Al-Baqarah', 'ayat' => '1-10', 'nilai' => 'L']],
+        ]);
+    }
+
+    public function test_different_year_same_month_assessment_allowed(): void
+    {
+        $a2026 = Assessment::create([
+            'class_group_id' => $this->classGroup->id,
+            'user_id' => $this->student->id,
+            'assessment_type' => 'ziyadah',
+            'month' => 9,
+            'year' => 2026,
+            'data' => [['surah' => 'Al-Baqarah', 'ayat' => '1-10', 'nilai' => 'L']],
+        ]);
+
+        $a2027 = Assessment::create([
+            'class_group_id' => $this->classGroup->id,
+            'user_id' => $this->student->id,
+            'assessment_type' => 'ziyadah',
+            'month' => 9,
+            'year' => 2027,
+            'data' => [['surah' => 'Al-Baqarah', 'ayat' => '11-20', 'nilai' => 'L']],
+        ]);
+
+        $this->assertNotNull($a2026->id);
+        $this->assertNotNull($a2027->id);
+        $this->assertNotEquals($a2026->id, $a2027->id);
+    }
+
+    public function test_null_period_allows_multiple_entries_in_sql_standard(): void
+    {
+        // NULL values in unique composite indexes do not match each other in SQL standard (and SQLite/MySQL)
+        // documenting NULL_UNIQUE_CONSTRAINT_GAP
+        $nullAssessment1 = Assessment::create([
+            'class_group_id' => $this->classGroup->id,
+            'user_id' => $this->student->id,
+            'assessment_type' => 'ziyadah',
+            'month' => null,
+            'year' => null,
+            'data' => [['surah' => 'Al-Baqarah', 'ayat' => '1-10', 'nilai' => 'L']],
+        ]);
+
+        $nullAssessment2 = Assessment::create([
+            'class_group_id' => $this->classGroup->id,
+            'user_id' => $this->student->id,
+            'assessment_type' => 'ziyadah',
+            'month' => null,
+            'year' => null,
+            'data' => [['surah' => 'Al-Baqarah', 'ayat' => '1-10', 'nilai' => 'L']],
+        ]);
+
+        $this->assertNotNull($nullAssessment1->id);
+        $this->assertNotNull($nullAssessment2->id);
+        $this->assertNotEquals($nullAssessment1->id, $nullAssessment2->id);
+    }
 }

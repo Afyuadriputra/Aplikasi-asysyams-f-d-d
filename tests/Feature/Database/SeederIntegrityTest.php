@@ -29,4 +29,11 @@ class SeederIntegrityTest extends TestCase
         $this->seed(SubjectSeeder::class);
         $this->assertDatabaseCount('subjects', 6);
     }
+
+    public function test_mockup_data_seeder_populates_domain_records_cleanly(): void
+    {
+        $this->seed(\Database\Seeders\MockupDataSeeder::class);
+        $this->assertDatabaseHas('users', ['email' => 'superadmin@asy-syams.test']);
+        $this->assertDatabaseHas('users', ['email' => 'guru.tahsin@asy-syams.test']);
+    }
 }

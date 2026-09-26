@@ -2,9 +2,11 @@
 
 namespace App\Filament\Resources;
 
-use App\Filament\Resources\GradeResource\Pages;
+use App\Features\Academic\Models\ClassGroup;
 use App\Features\Grades\Models\Grade;
 use App\Features\Grades\Services\GradeReportService;
+use App\Filament\Resources\GradeResource\Pages;
+use App\Models\User;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -36,19 +38,34 @@ class GradeResource extends Resource
         return $form
             ->schema([
                 Forms\Components\Select::make('user_id')
-                    ->relationship('student', 'name')
+                    ->relationship('student', 'name', modifyQueryUsing: function ($query) {
+                        $user = auth()->user();
+                        if ($user && $user->role === 'guru') {
+                            $query->whereHas('classGroups', fn ($q) => $q->where('teacher_id', $user->id));
+                        }
+                    })
                     ->label('Santri')
                     ->searchable()
                     ->required(),
 
                 Forms\Components\Select::make('subject_id')
-                    ->relationship('subject', 'name')
+                    ->relationship('subject', 'name', modifyQueryUsing: function ($query) {
+                        $user = auth()->user();
+                        if ($user && $user->role === 'guru') {
+                            $query->whereHas('classGroups', fn ($q) => $q->where('teacher_id', $user->id));
+                        }
+                    })
                     ->label('Mata Pelajaran')
                     ->searchable()
                     ->required(),
 
                 Forms\Components\Select::make('semester_id')
-                    ->relationship('semester', 'name')
+                    ->relationship('semester', 'name', modifyQueryUsing: function ($query) {
+                        $user = auth()->user();
+                        if ($user && $user->role === 'guru') {
+                            $query->whereHas('classGroups', fn ($q) => $q->where('teacher_id', $user->id));
+                        }
+                    })
                     ->label('Semester')
                     ->searchable()
                     ->required(),
@@ -133,10 +150,37 @@ class GradeResource extends Resource
         $user = auth()->user();
 
         if ($user && $user->role === 'guru') {
-            return $query->whereHas('student.classGroups', fn ($q) => $q->where('teacher_id', $user->id));
+            return $query->whereExists(function ($sub) use ($user) {
+                $sub->selectRaw(1)
+                    ->from('class_groups')
+                    ->join('class_group_student', 'class_groups.id', '=', 'class_group_student.class_group_id')
+                    ->where('class_groups.teacher_id', $user->id)
+                    ->whereColumn('class_groups.subject_id', 'grades.subject_id')
+                    ->whereColumn('class_groups.semester_id', 'grades.semester_id')
+                    ->whereColumn('class_group_student.user_id', 'grades.user_id')
+                    ->whereNull('class_group_student.deleted_at');
+            });
         }
 
         return $query;
+    }
+
+    protected static function canTeacherAccessGrade(?User $user, ?Grade $record): bool
+    {
+        if (! $user || ! $record) {
+            return false;
+        }
+
+        if ($user->role !== 'guru') {
+            return true;
+        }
+
+        return ClassGroup::query()
+            ->where('teacher_id', $user->id)
+            ->where('subject_id', $record->subject_id)
+            ->where('semester_id', $record->semester_id)
+            ->whereHas('students', fn ($q) => $q->where('users.id', $record->user_id))
+            ->exists();
     }
 
     public static function canView($record): bool
@@ -147,7 +191,7 @@ class GradeResource extends Resource
 
         $user = auth()->user();
         if ($user && $user->role === 'guru') {
-            return (bool) $record->student?->classGroups()->where('teacher_id', $user->id)->exists();
+            return static::canTeacherAccessGrade($user, $record);
         }
 
         return true;
@@ -161,7 +205,7 @@ class GradeResource extends Resource
 
         $user = auth()->user();
         if ($user && $user->role === 'guru') {
-            return (bool) $record->student?->classGroups()->where('teacher_id', $user->id)->exists();
+            return static::canTeacherAccessGrade($user, $record);
         }
 
         return true;
@@ -175,7 +219,7 @@ class GradeResource extends Resource
 
         $user = auth()->user();
         if ($user && $user->role === 'guru') {
-            return (bool) $record->student?->classGroups()->where('teacher_id', $user->id)->exists();
+            return static::canTeacherAccessGrade($user, $record);
         }
 
         return true;
@@ -186,6 +230,10 @@ class GradeResource extends Resource
         $user = Auth::user();
 
         if (! $user || ! $record->student) {
+            return false;
+        }
+
+        if ($user->role === 'guru' && ! static::canTeacherAccessGrade($user, $record)) {
             return false;
         }
 

@@ -32,4 +32,28 @@ class ActiveSemesterTest extends TestCase
         $activeCount = Semester::where('is_active', true)->count();
         $this->assertSame(1, $activeCount, 'Only exactly one semester should remain active');
     }
+
+    public function test_activating_new_semester_deactivates_previously_active_semester(): void
+    {
+        $semester1 = Semester::create([
+            'name' => 'Semester 1 2026/2027',
+            'start_date' => now()->startOfYear(),
+            'end_date' => now()->addMonths(6),
+            'is_active' => true,
+            'tuition_fee' => 500000,
+        ]);
+
+        $semester2 = Semester::create([
+            'name' => 'Semester 2 2026/2027',
+            'start_date' => now()->addMonths(6),
+            'end_date' => now()->endOfYear(),
+            'is_active' => true,
+            'tuition_fee' => 500000,
+        ]);
+
+        $this->assertFalse(
+            $semester1->fresh()->is_active,
+            'Previous semester should automatically be deactivated when new semester is activated'
+        );
+    }
 }

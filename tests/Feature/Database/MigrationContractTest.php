@@ -60,4 +60,14 @@ class MigrationContractTest extends TestCase
         $this->assertTrue(Schema::hasColumn('meetings', 'title'));
         $this->assertTrue(Schema::hasColumn('meetings', 'date'));
     }
+
+    public function test_unique_indexes_exist_on_critical_tables(): void
+    {
+        $userIndexes = Schema::getIndexes('users');
+        $emailUnique = collect($userIndexes)->first(fn ($idx) => in_array('email', $idx['columns'] ?? []) && ($idx['unique'] ?? false));
+        $this->assertNotNull($emailUnique, 'users table must have unique index on email');
+
+        $assessmentIndexes = Schema::getIndexes('assessments');
+        $this->assertNotEmpty($assessmentIndexes, 'assessments table must have indexes');
+    }
 }

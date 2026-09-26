@@ -37,4 +37,38 @@ class SpmbDeadlineRegistrationTest extends TestCase
             'email' => 'calon@example.com',
         ]);
     }
+
+    public function test_registration_is_allowed_when_spmb_deadline_is_in_the_future(): void
+    {
+        SiteSetting::create([
+            'key' => 'spmb_deadline',
+            'value' => now()->addDays(7)->toDateTimeString(),
+        ]);
+
+        $response = $this->post('/register', [
+            'name' => 'Calon Santri Baru',
+            'email' => 'calonbaru@example.com',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+            'nisn' => '9988776655',
+            'grade_level' => '1',
+            'birth_date' => '2015-05-05',
+            'mother_name' => 'Aisyah',
+            'school_origin' => 'SD IT Al-Hikmah',
+            'address' => 'Pekanbaru',
+            'phone' => '081234567891',
+            'gender' => 'P',
+        ]);
+
+        $response->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('users', [
+            'email' => 'calonbaru@example.com',
+        ]);
+    }
+
+    public function test_register_page_is_accessible(): void
+    {
+        $response = $this->get('/register');
+        $response->assertStatus(200);
+    }
 }
