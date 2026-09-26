@@ -671,6 +671,235 @@ class GradePipelineTest extends TestCase
         $this->assertEquals(90.0, (float) $manualGrade->fresh()->score);
     }
 
+    public function test_same_student_same_subject_semester_in_two_classes_does_not_silently_overwrite_grade(): void
+    {
+        $guruA = User::factory()->create(['role' => 'guru', 'is_active' => true]);
+        $guruB = User::factory()->create(['role' => 'guru', 'is_active' => true]);
+        $studentX = User::factory()->create(['role' => 'student', 'is_active' => true]);
+
+        $semester = Semester::create([
+            'name' => 'Semester 1 2026/2027',
+            'start_date' => now()->startOfYear(),
+            'end_date' => now()->endOfYear(),
+            'is_active' => true,
+            'tuition_fee' => 500000,
+        ]);
+
+        $subjectTahsin = Subject::create(['name' => 'Tahsin', 'slug' => 'tahsin']);
+
+        // Class A: Guru A, Tahsin, Semester 1
+        $classA = ClassGroup::create([
+            'name' => 'Tahsin Kelas A',
+            'slug' => 'tahsin-kelas-a',
+            'subject_id' => $subjectTahsin->id,
+            'semester_id' => $semester->id,
+            'teacher_id' => $guruA->id,
+            'class_type' => 'murottal',
+            'class_letter' => 'A',
+        ]);
+        $classA->students()->attach($studentX->id);
+
+        // Class B: Guru B, Tahsin, Semester 1
+        $classB = ClassGroup::create([
+            'name' => 'Tahsin Kelas B',
+            'slug' => 'tahsin-kelas-b',
+            'subject_id' => $subjectTahsin->id,
+            'semester_id' => $semester->id,
+            'teacher_id' => $guruB->id,
+            'class_type' => 'murottal',
+            'class_letter' => 'B',
+        ]);
+
+        // Create complete Assessment + Evaluation data for Class A (expected calculated score: 85)
+        Assessment::create([
+            'class_group_id' => $classA->id,
+            'user_id' => $studentX->id,
+            'assessment_type' => 'tahsin',
+            'month' => 1,
+            'year' => 2026,
+            'data' => [['nilai' => 85]],
+        ]);
+        Evaluation::create([
+            'class_group_id' => $classA->id,
+            'user_id' => $studentX->id,
+            'evaluation_number' => 1,
+            'items' => [['score' => 85]],
+        ]);
+
+        $gradeA = Grade::where('user_id', $studentX->id)
+            ->where('subject_id', $subjectTahsin->id)
+            ->where('semester_id', $semester->id)
+            ->first();
+
+        $this->assertNotNull($gradeA);
+        $this->assertEquals(85.0, (float) $gradeA->score);
+
+        // Student X is attached to Class B (simulating bypass/legacy duplicate enrollment)
+        $classB->students()->attach($studentX->id);
+
+        // Now attempt creating complete Assessment + Evaluation for Class B (expected calculated score: 92)
+        // Pipeline must detect GRADE_IDENTITY_COLLISION and reject silent last-write-wins overwrite
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessage('GRADE_IDENTITY_COLLISION');
+
+        try {
+            Assessment::create([
+                'class_group_id' => $classB->id,
+                'user_id' => $studentX->id,
+                'assessment_type' => 'tahsin',
+                'month' => 2,
+                'year' => 2026,
+                'data' => [['nilai' => 92]],
+            ]);
+            Evaluation::create([
+                'class_group_id' => $classB->id,
+                'user_id' => $studentX->id,
+                'evaluation_number' => 1,
+                'items' => [['score' => 92]],
+            ]);
+        } finally {
+            // Verify Class A score remains 85.0 and was not silently overwritten
+            $freshGrade = Grade::where('user_id', $studentX->id)
+                ->where('subject_id', $subjectTahsin->id)
+                ->where('semester_id', $semester->id)
+                ->first();
+            $this->assertEquals(85.0, (float) $freshGrade->score);
+        }
+    }
+
+    public function test_grade_database_identity_contract(): void
+    {
+        $this->assertTrue(
+            \Illuminate\Support\Facades\Schema::hasColumns('grades', [
+                'user_id', 'subject_id', 'semester_id', 'score', 'notes'
+            ]),
+            'Grades table must contain authoritative identity columns'
+        );
+    }
+
+    public function test_duplicate_grade_identity_is_rejected_by_database(): void
+    {
+        [$teacher, $student, $semester, $subject, $class] = $this->createClassContext();
+
+        \Illuminate\Support\Facades\DB::table('grades')->insert([
+            'user_id' => $student->id,
+            'subject_id' => $subject->id,
+            'semester_id' => $semester->id,
+            'score' => 80,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->expectException(\Illuminate\Database\QueryException::class);
+
+        \Illuminate\Support\Facades\DB::table('grades')->insert([
+            'user_id' => $student->id,
+            'subject_id' => $subject->id,
+            'semester_id' => $semester->id,
+            'score' => 90,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    public function test_manual_grade_behavior_when_auto_recalculation_occurs(): void
+    {
+        [$teacher, $student, $semester, $subject, $class] = $this->createClassContext();
+
+        // 1. Auto calculated Grade = 82
+        $assessment = Assessment::create([
+            'class_group_id' => $class->id,
+            'user_id' => $student->id,
+            'assessment_type' => 'ziyadah',
+            'month' => 1,
+            'year' => 2026,
+            'data' => [['nilai' => 82]],
+        ]);
+        Evaluation::create([
+            'class_group_id' => $class->id,
+            'user_id' => $student->id,
+            'evaluation_number' => 1,
+            'items' => [['score' => 82]],
+        ]);
+
+        $grade = Grade::where('user_id', $student->id)->where('subject_id', $subject->id)->first();
+        $this->assertEquals(82.0, (float) $grade->score);
+
+        // 2. Guru manually edits Grade.score = 95
+        $grade->update(['score' => 95]);
+        $this->assertEquals(95.0, (float) $grade->fresh()->score);
+
+        // 3. Later Assessment changes, new average = 87 (87 * 0.4 + 82 * 0.6 = 34.8 + 49.2 = 84.0)
+        $assessment->update(['data' => [['nilai' => 87]]]);
+
+        // Auto pipeline recalculates to 84.0 according to AUTO_AUTHORITATIVE rule
+        $this->assertEquals(84.0, (float) $grade->fresh()->score);
+    }
+
+    public function test_grade_delete_behavior_respects_authority_policy(): void
+    {
+        [$teacher, $student, $semester, $subject, $class] = $this->createClassContext();
+
+        // SCENARIO A: Complete Auto Grade exists -> Deleting component removes stale grade
+        $assessmentA = Assessment::create([
+            'class_group_id' => $class->id,
+            'user_id' => $student->id,
+            'assessment_type' => 'ziyadah',
+            'month' => 1,
+            'year' => 2026,
+            'data' => [['nilai' => 90]],
+        ]);
+        $evalA = Evaluation::create([
+            'class_group_id' => $class->id,
+            'user_id' => $student->id,
+            'evaluation_number' => 1,
+            'items' => [['score' => 90]],
+        ]);
+
+        $this->assertDatabaseHas('grades', [
+            'user_id' => $student->id,
+            'subject_id' => $subject->id,
+            'semester_id' => $semester->id,
+        ]);
+
+        $assessmentA->delete();
+        $this->assertDatabaseMissing('grades', [
+            'user_id' => $student->id,
+            'subject_id' => $subject->id,
+            'semester_id' => $semester->id,
+        ]);
+        $evalA->delete();
+
+        // SCENARIO B: Manual Grade exists beforehand -> Deleting lonely incomplete assessment must NOT delete manual grade
+        $manualGrade = Grade::create([
+            'user_id' => $student->id,
+            'subject_id' => $subject->id,
+            'semester_id' => $semester->id,
+            'score' => 77,
+            'notes' => 'Catatan nilai manual murni',
+        ]);
+
+        $lonelyAssessment = Assessment::create([
+            'class_group_id' => $class->id,
+            'user_id' => $student->id,
+            'assessment_type' => 'ziyadah',
+            'month' => 2,
+            'year' => 2026,
+            'data' => [['nilai' => 100]],
+        ]);
+
+        $this->assertEquals(77.0, (float) $manualGrade->fresh()->score);
+
+        $lonelyAssessment->delete();
+
+        // Authority policy: Manual grade must NOT be deleted silently!
+        $this->assertDatabaseHas('grades', [
+            'id' => $manualGrade->id,
+            'user_id' => $student->id,
+            'score' => 77,
+        ]);
+    }
+
     private function createClassContext(): array
     {
         $teacher = User::factory()->create(['role' => 'guru', 'is_active' => true]);

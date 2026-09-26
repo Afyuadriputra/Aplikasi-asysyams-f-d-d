@@ -99,6 +99,24 @@ class StudentsRelationManager extends RelationManager
 
                             $action->halt();
                         }
+
+                        if ($classGroup->subject_id && $classGroup->semester_id) {
+                            $alreadyInAnother = \App\Features\Academic\Models\ClassGroup::query()
+                                ->where('id', '!=', $classGroup->id)
+                                ->where('subject_id', $classGroup->subject_id)
+                                ->where('semester_id', $classGroup->semester_id)
+                                ->whereHas('students', fn ($q) => $q->where('users.id', $studentId))
+                                ->exists();
+
+                            if ($alreadyInAnother) {
+                                Notification::make()
+                                    ->title('Santri sudah terdaftar di kelas lain untuk mata pelajaran dan semester ini.')
+                                    ->warning()
+                                    ->send();
+
+                                $action->halt();
+                            }
+                        }
                     })
 
                     // Custom form untuk memasukkan data pivot tambahan (joined_at)

@@ -196,6 +196,21 @@ class ClassGroup extends Model
             ]);
         }
 
+        if ($this->subject_id && $this->semester_id) {
+            $alreadyEnrolledInSubjectSemester = static::query()
+                ->where('id', '!=', $this->id)
+                ->where('subject_id', $this->subject_id)
+                ->where('semester_id', $this->semester_id)
+                ->whereHas('students', fn ($q) => $q->where('users.id', $studentModel->id))
+                ->exists();
+
+            if ($alreadyEnrolledInSubjectSemester) {
+                throw ValidationException::withMessages([
+                    'student' => 'Santri sudah terdaftar dalam kelas lain untuk mata pelajaran dan semester yang sama.',
+                ]);
+            }
+        }
+
         $pivotData['joined_at'] = $pivotData['joined_at'] ?? now();
 
         $this->students()->attach($studentModel->id, $pivotData);

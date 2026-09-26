@@ -212,4 +212,85 @@ class ClassGroupStudentEligibilityTest extends TestCase
             'Inactive student must not be attached via relation manager action'
         );
     }
+
+    public function test_student_cannot_join_two_classes_for_same_subject_and_semester(): void
+    {
+        $teacherA = User::factory()->create(['role' => 'guru', 'is_active' => true]);
+        $teacherB = User::factory()->create(['role' => 'guru', 'is_active' => true]);
+        $semester = Semester::create([
+            'name' => 'Semester Aktif',
+            'start_date' => now(),
+            'end_date' => now()->addMonths(6),
+            'is_active' => true,
+            'tuition_fee' => 500000,
+        ]);
+        $subject = Subject::create(['name' => 'Murottal', 'slug' => 'murottal']);
+        $classA = ClassGroup::create([
+            'subject_id' => $subject->id,
+            'semester_id' => $semester->id,
+            'teacher_id' => $teacherA->id,
+            'class_type' => 'murottal',
+            'class_letter' => 'A',
+        ]);
+        $classB = ClassGroup::create([
+            'subject_id' => $subject->id,
+            'semester_id' => $semester->id,
+            'teacher_id' => $teacherB->id,
+            'class_type' => 'murottal',
+            'class_letter' => 'B',
+        ]);
+
+        $student = User::factory()->create(['role' => 'student', 'is_active' => true]);
+        $classA->attachStudent($student);
+
+        $this->expectException(ValidationException::class);
+        $classB->attachStudent($student);
+    }
+
+    public function test_students_relation_manager_halts_attaching_student_to_duplicate_subject_semester_class(): void
+    {
+        $admin = User::factory()->create(['role' => 'superadmin', 'is_active' => true]);
+        $teacherA = User::factory()->create(['role' => 'guru', 'is_active' => true]);
+        $teacherB = User::factory()->create(['role' => 'guru', 'is_active' => true]);
+        $semester = Semester::create([
+            'name' => 'Semester Aktif',
+            'start_date' => now(),
+            'end_date' => now()->addMonths(6),
+            'is_active' => true,
+            'tuition_fee' => 500000,
+        ]);
+        $subject = Subject::create(['name' => 'Murottal', 'slug' => 'murottal']);
+        $classA = ClassGroup::create([
+            'subject_id' => $subject->id,
+            'semester_id' => $semester->id,
+            'teacher_id' => $teacherA->id,
+            'class_type' => 'murottal',
+            'class_letter' => 'A',
+        ]);
+        $classB = ClassGroup::create([
+            'subject_id' => $subject->id,
+            'semester_id' => $semester->id,
+            'teacher_id' => $teacherB->id,
+            'class_type' => 'murottal',
+            'class_letter' => 'B',
+        ]);
+
+        $student = User::factory()->create(['role' => 'student', 'is_active' => true]);
+        $classA->attachStudent($student);
+
+        $this->actingAs($admin);
+
+        Livewire::test(StudentsRelationManager::class, [
+            'ownerRecord' => $classB,
+            'pageClass' => EditClassGroup::class,
+        ])
+            ->callTableAction('attach', data: [
+                'recordId' => $student->id,
+            ]);
+
+        $this->assertFalse(
+            $classB->fresh()->students()->where('users.id', $student->id)->exists(),
+            'Student already in another class for same subject and semester must not be attached via relation manager'
+        );
+    }
 }
